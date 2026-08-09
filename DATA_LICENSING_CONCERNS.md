@@ -1,6 +1,6 @@
 # Data licensing & sharing — concerns before publishing data or results
 
-**Status: partly resolved (July 2026). See the update box below.**
+**Status: partly resolved (July–August 2026). See the update box below.**
 **I am not a lawyer and this is not legal advice.** This is an engineering-level
 review of the data-use terms recorded in [`data_manifest.json`](data_manifest.json),
 written so the open questions are visible instead of implicit. Every item marked
@@ -10,25 +10,26 @@ each licensor.
 
 ---
 
-## ✅ Update — 2026-07-31: three blanks resolved, all in your favour
+## ✅ Update — 2026-08-07: EVE resolved too — four blanks now closed, all in your favour
 
-Three of the datasets this document treated as restricted or unconfirmed were
-re-checked against the providers' current public terms. **All three moved toward
-*more* permissive**, which materially widens what you can publish. See
+Four of the datasets this document treated as restricted or unconfirmed have now
+been re-checked against the providers' current public terms. **All four moved
+toward *more* permissive**, which materially widens what you can publish. See
 [`PUBLISHING.md`](PUBLISHING.md) for the resulting publish/hold decision per file.
 
-| Dataset | This doc originally said | Verified current term (2026-07-31) | Effect |
+| Dataset | This doc originally said | Verified current term | Effect |
 |---|---|---|---|
-| **AlphaMissense** | CC BY-NC-SA (unconfirmed) | **CC BY 4.0** — DeepMind lifted the NonCommercial restriction on **13 Mar 2024** | ✅ **Publishable** with attribution. Also **dissolves License Conflict #3** — there is no ShareAlike term left to clash with PrimateAI's ND. |
-| **gnomAD** | *(no license recorded)* | **ODbL** (Open Database License) + MIT terms | ✅ **Redistributable** with attribution, keep-open, and ShareAlike-under-ODbL. gnomAD explicitly states there are "no restrictions or embargoes" on publishing derived results. |
-| **ClinVar** | *(no license recorded)* | **CC0 1.0 / U.S. public domain**; NCBI places "no restrictions on use or distribution" | ✅ **Redistributable**; attribution merely *requested*. CFTR2's expert-panel calls reach ClinVar under the same CC0. |
+| **AlphaMissense** | CC BY-NC-SA (unconfirmed) | **CC BY 4.0** — DeepMind lifted the NonCommercial restriction on **13 Mar 2024** (verified 2026-07-31) | ✅ **Publishable** with attribution. Also **dissolves License Conflict #3** — there is no ShareAlike term left to clash with PrimateAI's ND. |
+| **gnomAD** | *(no license recorded)* | **ODbL** (Open Database License) + MIT terms (verified 2026-07-31) | ✅ **Redistributable** with attribution, keep-open, and ShareAlike-under-ODbL. gnomAD explicitly states there are "no restrictions or embargoes" on publishing derived results. |
+| **ClinVar** | *(no license recorded)* | **CC0 1.0 / U.S. public domain**; NCBI places "no restrictions on use or distribution" (verified 2026-07-31) | ✅ **Redistributable**; attribution merely *requested*. CFTR2's expert-panel calls reach ClinVar under the same CC0. |
+| **EVE** | Unconfirmed — site said to be JS-only, no machine-readable license | **MIT** — evemodel.org's Bulk Protein Data and Single Protein Data pages both state verbatim: *"The downloading of this data, and of all other data on this site, falls under the MIT License."* (verified 2026-08-07, via a JS-rendering browser — the earlier "JS-only, no license visible" note was a limitation of the tool used to check it, not the site) | ✅ **Publishable** — no attribution notice beyond the standard MIT copyright/license text, no NC, no ShareAlike. Matches the GitHub code license (MIT, copyright Pascal Notin 2021). |
 
 **Still restricted (unchanged, correctly recorded):** SpliceAI (CC BY-NC 4.0),
-REVEL (non-commercial; redistribution unaddressed), PrimateAI via dbNSFP
-(**CC BY-NC-ND** — the one hard blocker). **Still a genuine blank:** EVE — the
-evemodel.org site is JavaScript-only and states no machine-readable license; its
-terms must be confirmed on the site or by emailing the Marks lab before any EVE
-extract is redistributed.
+REVEL (non-commercial; redistribution unaddressed). **PrimateAI switched sources
+2026-08-08** (from a dbNSFP subset to its own native Illumina release) — the
+restriction changed shape but not effect: it's now **"for research use only"**
+(Illumina, 2018, stated verbatim in the release file's own header) instead of
+dbNSFP's CC BY-NC-ND. Still the one hard blocker for redistribution.
 
 > One caveat on the gnomAD/ClinVar wins: gnomAD ships **SpliceAI annotations under
 > CC BY-NC**, so if you ever republish a gnomAD *slice that includes its SpliceAI
@@ -82,10 +83,10 @@ on it*, never *assume it's fine*.
 
 | Dataset | Recorded terms | My concern | Confidence |
 |---|---|---|---|
-| **PrimateAI** (via dbNSFP v5.0a) | dbNSFP **CC BY-NC-ND**; PrimateAI non-commercial | ⚠️ **The sharpest problem.** **ND = NoDerivatives.** A CC BY-NC-ND license permits sharing the work *verbatim* but prohibits distributing **adapted** material. Our `primateai_cftr.csv` is a filtered, re-keyed, column-renamed, de-duplicated extract — that is plausibly an adaptation. The merged benchmark table certainly is. | High that ND applies; unsure whether a filtered subset counts as a "derivative" in this context |
+| **PrimateAI** (native Illumina release, switched from dbNSFP 2026-08-08) | **"For research use only"** — stated verbatim in the release file's own header (Illumina, 2018) | ⚠️ **Still the sharpest problem, different mechanism.** Not an ND/derivatives question anymore — it's a direct use-scope restriction. "Research use only" is generally read as excluding redistribution on a public repo (a commercial platform, reachable by anyone) regardless of derivative status. Our `primateai_cftr.csv` is filtered/re-keyed either way. | High that redistribution is out of scope for "research use only" |
 | **SpliceAI** (Illumina precomputed v1.3) | **CC BY-NC 4.0** — attribute SpliceAI + Illumina | ⚠️ **NonCommercial** is genuinely ambiguous for a public GitHub repo. Publishing to a free public repo is not obviously "commercial," but GitHub is a commercial platform and downstream users may be commercial. CC BY-NC also **requires** the license notice + attribution to travel with the data. Our extract is ~2.08 million rows / ~116 MB — substantial, not a token sample. | High that NC + attribution apply; unsure whether public-repo hosting violates NC |
 | **REVEL** | "free for **non-commercial** use (contact authors otherwise)" | ⚠️ This is **not a standard license** — it is a usage permission with no stated *redistribution* right. Permission to *use* data is not permission to *republish* it. The instruction to "contact the authors" suggests case-by-case licensing. | High that redistribution is unaddressed |
-| **EVE** | "EVE / evemodel.org terms — **CONFIRM before publishing this extract**" | ⚠️ **The terms were never confirmed.** The manifest has flagged this as unresolved since the extract was built. I cannot tell you whether publishing 26,809 EVE scores is permitted, because nobody has checked. | Unknown — this is a genuine blank |
+| **EVE** | ~~"EVE / evemodel.org terms — CONFIRM before publishing this extract"~~ → **MIT** (verified 2026-08-07) | ✅ **Resolved — publishable.** evemodel.org states both data and code fall under MIT (matches the GitHub repo's own MIT LICENSE, copyright Pascal Notin 2021). No NC, no ShareAlike, no attribution requirement beyond standard MIT notice. | High — verified directly on evemodel.org's download pages |
 | **AlphaMissense** | ~~CC BY-NC-SA (unconfirmed)~~ → **CC BY 4.0** (relicensed 13 Mar 2024) | ✅ **Resolved — publishable.** Attribution only; no NonCommercial, no ShareAlike. Removes the Conflict #3 blocker. Cite Cheng et al. 2023 + note the CC BY 4.0 release. | High — verified against DeepMind's release |
 | **CFTR2** | "CFTR2 public data-use terms (cite CFTR2)" | Mildest of the restricted set — CFTR2 publishes this variant list openly and asks for citation. Still has *its own terms*; "public" is not the same as "unrestricted." Worth reading the actual data-use statement rather than assuming. | Medium-low concern, but read the terms |
 | **gnomAD** | ~~*(no license recorded)*~~ → **ODbL** + MIT | ✅ **Resolved — redistributable.** Attribute gnomAD, keep derived DB open, share adaptations under ODbL. Do not reidentify participants. Publish frequency columns, **not** gnomAD's bundled CC BY-NC SpliceAI column. | High — verified against gnomAD policies page |
@@ -112,22 +113,26 @@ and I don't think you should guess.**
 It is tempting to think that slicing SpliceAI down to CFTR (~2 M of billions of rows)
 makes it a new thing. I don't think that reasoning is safe: the *value* in the file is
 entirely the licensor's predictions, and the selection is mechanical (a coordinate
-range). The strongest version of this concern is PrimateAI's **ND** term, which
-targets exactly this.
+range). The strongest version of this concern is PrimateAI's **"research use only"**
+term, which targets exactly this regardless of how the data is sliced.
 
 ### 3. Two licenses that may not be combinable
 
 **➡️ 2026-07-31: this conflict is largely dissolved.** AlphaMissense is now
 **CC BY 4.0** (no ShareAlike), so the direct SA-vs-ND contradiction is gone. What
 remains is simpler but still real: `predict_cftr2_benchmark_ALL.csv` still merges
-**PrimateAI (CC BY-NC-ND)**, **REVEL (NC)**, and **SpliceAI (CC BY-NC)** into one
-table. ND means you may not distribute a derivative of the PrimateAI column *at all*,
-so the merged table remains **hold / do-not-publish** as-is.
+**PrimateAI ("research use only")**, **REVEL (NC)**, and **SpliceAI (CC BY-NC)** into
+one table. Research-use-only means you may not distribute the PrimateAI column
+outside research use *at all*, so the merged table remains **hold / do-not-publish**
+as-is.
 
 Original framing, for the record:
 
 - ~~**AlphaMissense: CC BY-NC-SA** → derivatives must be shared alike~~ (no longer applies)
-- **dbNSFP/PrimateAI: CC BY-NC-ND** → adapted material *must not* be distributed.
+- ~~**dbNSFP/PrimateAI: CC BY-NC-ND** → adapted material *must not* be distributed.~~
+  (PrimateAI switched to its native release 2026-08-08 — now "research use only"
+  directly from Illumina, not an ND-derivatives question via dbNSFP. Same practical
+  outcome: still a hard blocker.)
 
 **Fix, unchanged:** split results per-source, drop the ND/NC columns, or publish only
 aggregates. A benchmark table carrying **only your own derived calls** (`category`,
@@ -164,9 +169,9 @@ below still explains *why* this matters:
    `predict_category_summary.csv` are in this category.
 3. **Add a LICENSE for your own work**, with an explicit note that it covers the code
    and documentation **only**, not any third-party data the scripts download.
-4. **Resolve EVE and AlphaMissense**, which the manifest itself flags as unconfirmed.
-   These are known blanks, not judgment calls — they can be closed by reading the
-   current terms.
+4. ~~**Resolve EVE and AlphaMissense**, which the manifest itself flags as
+   unconfirmed.~~ **Done** — both closed (AlphaMissense 2026-07-31, EVE
+   2026-08-07); both are MIT/CC BY, publishable.
 5. **If you want to publish per-variant tables, ask the licensors.** A short email to
    the REVEL authors, dbNSFP, and Illumina/SpliceAI describing exactly what you want
    to publish (a CFTR-only extract, for teaching, on a public repo) would replace all
