@@ -18,7 +18,7 @@ predict (13, in [`predict/`](predict/README.md)).
 > This repository ships **code + notebooks + a data manifest only**.
 > Every dataset (raw sources *and* the derived per-CFTR score extracts) is
 > license-restricted / non-commercial — SpliceAI CC BY-NC, REVEL non-commercial,
-> **PrimateAI/dbNSFP CC BY-NC-ND**, AlphaMissense CC BY 4.0, EVE per-publication,
+> **PrimateAI "research use only"**, AlphaMissense CC BY 4.0, EVE MIT,
 > CFTR2 data-use terms — and is **not redistributed here**. Regenerate each extract
 > yourself by running the fetch/build cell in that tool's own notebook (some query a
 > live API directly; others need a file you download by hand — the notebook tells you
@@ -36,14 +36,14 @@ notebook's fetch/build cell*, **not** what you get on `git clone`.
 
 | Source | REAL once you… | Coverage (once built) | Fresh clone gives you | Notebook |
 |---|---|---|---|---|
-| gnomAD v4 (allele freq) | run the fetch cell (live query) | ~2,466 missense / ~4,717 non-coding | ❌ `FileNotFoundError` | tools/01 |
+| gnomAD v4.1.1 (allele freq) | run the fetch cell (live query) | ~2,466 missense / ~4,717 non-coding / ~394 other-coding | ❌ `FileNotFoundError` | tools/01 |
 | **AlphaMissense** | run the fetch cell (live query) | genome-wide CFTR missense | ❌ `FileNotFoundError` | tools/02 |
 | ClinVar | run the fetch cell (live query) | genome-wide | ❌ `FileNotFoundError` | benchmark/00 |
 | **CFTR2** (30 Jan 2026) | run the build cell (manual download) | ~2,097 variants / ~780 missense keys | ⚠️ DEMO fallback | benchmark/01 |
 | **EVE** | run the build cell (manual download) | ~26,809 CFTR variants | ⚠️ DEMO fallback | tools/03 |
 | **ESM1b** | run the build cell (manual download) | ~28,120 CFTR (saturation) | ⚠️ DEMO fallback | tools/04 |
 | **REVEL** | run the build cell (manual download) | ~10,127 CFTR (coord-keyed; non-commercial) | ⚠️ DEMO fallback | tools/05 |
-| **PrimateAI** | run the build cell (manual download) | ~1,976 CFTR (dbNSFP subset; non-commercial) | ⚠️ DEMO fallback | tools/06 |
+| **PrimateAI** | run the build cell (manual download) | ~9,722 CFTR (native Illumina release; research use only) | ⚠️ DEMO fallback | tools/06 |
 | **SpliceAI** | run the build cell (manual download) | ~2.08M CFTR records — 566k SNVs **+ 1.51M indels** (Illumina v1.3, CC BY-NC) | ⚠️ DEMO fallback | tools/07 |
 | **Pangolin** | run the build cell (runs the model) | ~1,892 CFTR2 variants (SNVs **and** indels) | ⚠️ DEMO fallback | tools/08 |
 | CADD | — (live API, no local file) | per-variant | ✅ live (cache it) | tools/09 |
@@ -261,7 +261,7 @@ toolkit is the notebook companion. B1 is summarised here for context only.*
 The earlier one-page summary reported the historical `2496 / 413 / 403 / 10 / 4 / 1094`.
 Here is what each one actually is, and its corrected real value:
 
-- **2,496 → 2,466.** The real gnomAD v4 CFTR missense backbone is **2,466** variants;
+- **2,496 → 2,466.** The real gnomAD v4.1.1 CFTR missense backbone is **2,466** variants;
   the historical **2,496** added ~30 hand-curated famous alleles (G551D, …). Of the
   2,466, **2,430** have an AlphaMissense score and **2,437** have ≥1 real predictor.
 - **413 = 403 + 10 → 402 = 392 + 10.** This is a **two-source comparison —
@@ -292,8 +292,8 @@ whether it is current or historical. "Source" points at where it is computed.
 
 | Number | What it counts | Status | Source |
 |---|---|---|---|
-| **2,466** | gnomAD v4 CFTR **missense** variants (no PASS/AC filter) — the real backbone | ✅ current | tools/01; `gnomad_missense.rows` |
-| 2,133 | subset of those that are PASS + AC>0 in the gnomAD browser (stricter view) | ✅ current (alt filter) | manifest note |
+| **2,466** | gnomAD v4.1.1 CFTR **missense** variants (no PASS/AC filter) — the real backbone | ✅ current | tools/01; `gnomad_all.rows` (`gnomad_class=='missense'`) |
+| 2,177 | subset of those that are PASS in gnomAD's `joint_filters` (stricter view; live-computed in tools/01, not the same cut as the browser's default) | ✅ current (alt filter) | manifest note |
 | 2,430 / 2,437 | of the 2,466: have an AlphaMissense score / have ≥1 real predictor | ✅ current | archived integration nb |
 | **2,496** | 2,466 + ~30 hand-curated famous alleles injected by the original script | 🕰️ historical | archived integration nb |
 | **413** = 403 + 10 | AlphaMissense-vs-ClinVar discordance on the **original webpage** | 🕰️ historical | webpage |
@@ -302,7 +302,7 @@ whether it is current or historical. "Source" points at where it is computed.
 | 4 / 3 | historical Priority-1 (≥3/5 over ~13 demo variants; 3 after real EVE drops S912L) | 🕰️ historical/demo | webpage / archived integration nb |
 | 256 | CFTR2 "no interpretation" or "varying consequence" **and** AM ≥ 0.564 (fully-real upgrade set) | ✅ current | benchmark/01, tools/10 |
 | **1,085** | older stated gnomAD non-coding count | 🕰️ stale | old table |
-| **4,717** | gnomAD v4 CFTR **non-coding** variants (intron + synonymous + UTR + splice-region) | ✅ current | tools/01; `gnomad_noncoding.rows` |
+| **4,717** | gnomAD v4.1.1 CFTR **non-coding** variants (intron + synonymous + UTR + splice-region) | ✅ current | tools/01; `gnomad_all.rows` (`gnomad_class=='noncoding'`) |
 | **1,094** | historical "splice variants scored" (really 9 DEMO scored + ~1,085 unscored) | 🕰️ historical/demo | webpage |
 | **4,535 / 4,717** | non-coding variants that get a **real SpliceAI** score (was 4,260 pre-indels) | ✅ current | tools/07 |
 | **173 / 86** | of those 4,535: real SpliceAI HIGH (≥0.5) / MODERATE (0.2–0.5) | ✅ current | tools/07 |
@@ -310,8 +310,9 @@ whether it is current or historical. "Source" points at where it is computed.
 | 9 | hand-curated DEMO splice variants (the A2 teaching table) | 🟡 DEMO | `toolkit.py` |
 
 Coverage counts for the built extracts (saturation unless noted): EVE ~26,809 ·
-ESM1b ~28,120 · REVEL ~10,826 raw (~10,127 after per-site dedup) · PrimateAI ~1,976
-(dbNSFP ClinVar subset, ~53%, **not** saturation) · CFTR2 ~2,097.
+ESM1b ~28,120 · REVEL 10,826 raw (9,730 canonical-transcript-only, verified saturating —
+tools/05) · PrimateAI ~9,722 (native Illumina release, near-saturating — tools/06) ·
+CFTR2 ~2,097.
 
 See tools/10 for why "predictor disagrees with ClinVar" is only evidence
 when the predictor never trained on ClinVar-lineage labels (REVEL did; the
@@ -326,12 +327,12 @@ unsupervised tools did not).
 | # | File | Covers | Data on a fresh clone |
 |---|---|---|---|
 | 00 | `tools/00_overview_and_setup.ipynb` | setup + the provenance map | — |
-| 01 | `tools/01_gnomad.ipynb` | gnomAD — population allele frequency as orthogonal evidence | REAL if cached, else error |
+| 01 | `tools/01_gnomad.ipynb` | gnomAD — population frequency as a variant classifier in its own right | REAL if cached, else error |
 | 02 | `tools/02_alphamissense.ipynb` | AlphaMissense — genome-wide missense predictor | REAL if cached, else error |
 | 03 | `tools/03_eve.ipynb` | EVE — unsupervised evolutionary model | REAL if built, else DEMO |
 | 04 | `tools/04_esm1b.ipynb` | ESM1b — protein language model (backwards scale) | REAL if built, else DEMO |
 | 05 | `tools/05_revel.ipynb` | REVEL — supervised ensemble + **circularity** | REAL if built, else DEMO |
-| 06 | `tools/06_primateai.ipynb` | PrimateAI — semi-supervised (subset) | REAL if built, else DEMO |
+| 06 | `tools/06_primateai.ipynb` | PrimateAI — semi-supervised (near-saturating) | REAL if built, else DEMO |
 | 07 | `tools/07_spliceai.ipynb` | SpliceAI — splice deltas (all CFTR SNVs) | REAL if built, else DEMO |
 | 08 | `tools/08_pangolin.ipynb` | Pangolin — independent splice model, run locally over all of CFTR2 | REAL if run, else DEMO |
 | 09 | `tools/09_cadd.ipynb` | CADD — live deleteriousness score | REAL (live API) |

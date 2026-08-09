@@ -1,7 +1,8 @@
 # PUBLISHING.md — how to publish as much as possible, safely
 
 *Companion to [`DATA_LICENSING_CONCERNS.md`](DATA_LICENSING_CONCERNS.md) and
-[`data_manifest.json`](data_manifest.json). Reviewed 2026-07-31. Not legal advice.*
+[`data_manifest.json`](data_manifest.json). Reviewed 2026-07-31, EVE entry updated
+2026-08-07. Not legal advice.*
 
 This file answers one question: **given the goal of publishing as much CFTR
 in-silico data as possible, what can go where?** It separates two very different
@@ -26,12 +27,12 @@ the other:
 | **gnomAD** (freq cols) | ODbL + MIT | ✅ **Yes** | ✅ Yes | Attribute, keep-open, ODbL share-alike; no reidentification |
 | **ClinVar** | CC0 / public domain | ✅ **Yes** | ✅ Yes | No restrictions; attribution requested |
 | **CFTR2** | Public data-use (cite); also CC0 via ClinVar | ✅ **Yes** (cite) | ✅ Yes | Prefer the ClinVar-sourced calls (CC0) if you want zero ambiguity |
+| **EVE** | MIT (data and code, verified 2026-08-07) | ✅ **Yes** | ✅ Yes | evemodel.org states data downloads fall under MIT, same as the GitHub repo |
 | **ESM1b** | MIT code; scores "per publication" | ⚠️ **Confirm first** | ⚠️ Confirm | Likely fine; no explicit redistribution license — verify with ntranoslab repo |
 | **Pangolin** | Non-commercial (your own model output) | ❌ No | ✅ Yes (cite) | Your output, but model is NC → NC channel only |
 | **SpliceAI** | CC BY-NC 4.0 | ❌ No | ✅ Yes (+ NC notice) **or** live-API | NC forbids the open repo; a genuine NC tool may host with attribution |
 | **REVEL** | Non-commercial; redistribution unaddressed | ❌ No | ⚠️ Not without permission | Grants *use*, not *republish* — email authors or live-query |
-| **PrimateAI / dbNSFP** | CC BY-NC-**ND** | ❌ No | ❌ **No** | ND blocks redistributing a derived extract in *any* channel |
-| **EVE** | Unconfirmed (site is JS-only) | ❌ No | ❌ Not yet | Genuine blank — confirm evemodel.org terms before either |
+| **PrimateAI** | "For research use only" (Illumina, 2018) | ❌ No | ❌ **No** | Research-use-only blocks redistributing a derived extract in *any* channel |
 | **CADD** | Live API; separate terms | ❌ No (don't cache-republish) | ✅ Live-query only | Keep querying live; don't host a cached copy |
 
 **Your own derived columns** — `category`, `mechanism`, `n_missense_tools`, calls,
@@ -92,17 +93,17 @@ Ship `predict_cftr2_benchmark_ALL.csv` **without** the SpliceAI/REVEL/PrimateAI 
 columns — keep the variant key + your `category`/`mechanism`/`n_missense_tools`. Fully
 publishable, fully reproducible via `build_*.py`.
 
-### 5. Close the two remaining blanks
+### 5. Close the remaining blank
 - **ESM1b** — confirm the score-redistribution terms on the ntranoslab/esm-variants
   repo. If permissive, promote it to Channel A.
-- **EVE** — confirm evemodel.org's terms (or email the Marks lab). Until then, hold.
+  (EVE was the other blank; resolved 2026-08-07 — see the decision table above.)
 
 ---
 
 ## Permission emails (copy, fill the brackets, send)
 
-Getting a one-line "yes" replaces all guesswork and would let you host REVEL, EVE, or
-even a merged table. Several groups grant this readily for teaching resources.
+Getting a one-line "yes" replaces all guesswork and would let you host REVEL or even
+a merged table. Several groups grant this readily for teaching resources.
 
 ### To the REVEL authors (redistribution of a CFTR subset)
 > Subject: Permission to redistribute a CFTR-only REVEL subset (non-commercial, educational)
@@ -120,15 +121,10 @@ even a merged table. Several groups grant this readily for teaching resources.
 >
 > Thank you — [name, affiliation]
 
-### To the EVE / Marks lab (confirm terms + redistribution)
-> Subject: License terms for redistributing a CFTR EVE extract
->
-> Dear EVE team,
->
-> I'd like to include EVE scores for CFTR (UniProt P13569, ~26,809 variants, 2021-08
-> release) in an open, non-commercial CFTR teaching toolkit and a non-commercial
-> lookup tool. I couldn't find a machine-readable license on evemodel.org. Under what
-> terms may I redistribute this gene-restricted extract, with attribution? — [name]
+~~### To the EVE / Marks lab (confirm terms + redistribution)~~ — **not needed.**
+evemodel.org's download pages state the data falls under MIT (verified 2026-08-07;
+see the decision table above and `DATA_LICENSING_CONCERNS.md`). No permission email
+required.
 
 ### To Illumina / SpliceAI (optional — clarify NC hosting)
 > Subject: Hosting a CFTR SpliceAI subset in a non-commercial tool (CC BY-NC)

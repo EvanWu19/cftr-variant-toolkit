@@ -185,59 +185,77 @@ LABEL_SUPERVISED = {  # trained directly on curated clinical pathogenic/benign l
 # =============================================================================
 # 1. gnomAD — population allele frequencies (REAL, cached)
 # =============================================================================
-def load_gnomad_missense() -> pd.DataFrame:
-    """CFTR missense variants + allele frequency from gnomAD v4 (REAL).
+def load_gnomad_all() -> pd.DataFrame:
+    """Every CFTR variant gnomAD v4.1.1 reports, classified (REAL).
 
     gnomAD (Genome Aggregation Database) is a reference set of human variation
-    from ~800k individuals. Allele frequency (AF) is the single most useful
-    *orthogonal* filter for pathogenicity: a truly CF-causing recessive allele
-    should be rare (AF typically < 1e-3), so a "pathogenic" prediction on a
-    common variant is a red flag.
+    from a joint call of ~730k exomes + ~76k genomes. Allele frequency (AF) is
+    a classification method in its own right, independent of any protein
+    structure/sequence model: a truly CF-causing recessive allele should be
+    rare (AF typically < 1e-3), so a "pathogenic" prediction on a common
+    variant is a red flag (ACMG BS1/BA1).
 
-    Returns columns: variant_id, hgvs_c, hgvs_p, protein_variant, consequence,
-    gnomad_af, source. One row per missense variant (~2,466).
+    Returns one row per CFTR variant (~7,577), with `gnomad_class` one of:
+    "missense" (scorable by AlphaMissense/EVE/REVEL/ESM1b/PrimateAI),
+    "noncoding" (intron/synonymous/UTR/splice-region — outside what a
+    missense predictor models at all), or "other_coding" (stop_gained,
+    frameshift, inframe indel, start/stop lost/retained — protein-coding but
+    not a single-residue substitution, so missense predictors don't apply;
+    typically evaluated via ACMG PVS1 instead).
+
+    `gnomad_af` is gnomAD v4.1's *joint* allele frequency (`joint.ac /
+    joint.an`), which sums allele counts across the exome and genome cohorts
+    before dividing — a real combined-cohort estimate, not the larger of two
+    independently-normalized proportions.
 
     Thin reader only: the gnomAD GraphQL fetch that builds
-    data/gnomad_cftr_missense.tsv lives in tools/01_gnomad.ipynb (no precomputed
+    data/gnomad_cftr_all.tsv lives in tools/01_gnomad.ipynb (no precomputed
     per-gene download exists, so the notebook queries the live API directly).
     """
-    fp = DATA_DIR / "gnomad_cftr_missense.tsv"
+    fp = DATA_DIR / "gnomad_cftr_all.tsv"
     if not fp.exists():
         raise FileNotFoundError(
             f"{fp} missing. Run the fetch cell in tools/01_gnomad.ipynb "
-            "(queries the gnomAD v4 GraphQL API live; no download needed).")
+            "(queries the gnomAD v4.1.1 GraphQL API live; no download needed).")
     df = pd.read_csv(fp, sep="\t", low_memory=False)
-    df = df.rename(columns={"hgvsc": "hgvs_c", "hgvsp": "hgvs_p"})
     df["protein_variant"] = df["hgvs_p"].apply(hgvsp_to_short)
     df["source"] = "REAL"
+    return df
+
+
+def load_gnomad_missense() -> pd.DataFrame:
+    """CFTR missense variants + allele frequency from gnomAD v4.1.1 (REAL).
+
+    Thin filter over load_gnomad_all() (gnomad_class == "missense"), kept as
+    its own loader because it's the join key every missense-predictor notebook
+    (tools/02, 05, 07 and the shared worked-example panel) uses.
+
+    Returns columns: variant_id, hgvs_c, hgvs_p, protein_variant, consequence,
+    gnomad_af, source. One row per missense variant (~2,466).
+    """
+    df = load_gnomad_all()
+    df = df[df["gnomad_class"] == "missense"]
     return df[["variant_id", "hgvs_c", "hgvs_p", "protein_variant",
-               "consequence", "gnomad_af", "source"]]
+               "consequence", "gnomad_af", "source"]].reset_index(drop=True)
 
 
 def load_gnomad_noncoding() -> pd.DataFrame:
-    """CFTR non-coding / synonymous / splice-region variants from gnomAD v4 (REAL).
+    """CFTR non-coding / synonymous / splice-region variants from gnomAD v4.1.1 (REAL).
 
-    Same source as load_gnomad_missense(), but the consequence classes that the
-    missense predictors CANNOT see: intronic, synonymous, UTR, splice-region.
-    These are the substrate for the A2 splice analysis.
-
-    Thin reader only: fetched by the same cell as load_gnomad_missense(), in
-    tools/01_gnomad.ipynb -> data/gnomad_cftr_noncoding.tsv (~4,717 variants).
+    Thin filter over load_gnomad_all() (gnomad_class == "noncoding") — the
+    consequence classes a missense predictor can't reach at all: intronic,
+    synonymous, UTR, splice-region. These are the substrate for the A2 splice
+    analysis. One row per non-coding variant (~4,717).
     """
-    fp = DATA_DIR / "gnomad_cftr_noncoding.tsv"
-    if not fp.exists():
-        raise FileNotFoundError(
-            f"{fp} missing. Run the fetch cell in tools/01_gnomad.ipynb.")
-    df = pd.read_csv(fp, sep="\t", low_memory=False)
-    df["source"] = "REAL"
-    return df
+    df = load_gnomad_all()
+    return df[df["gnomad_class"] == "noncoding"].reset_index(drop=True)
 
 
 # =============================================================================
 # 2. AlphaMissense — the one REAL genome-wide missense predictor here
 # =============================================================================
 def load_alphamissense() -> pd.DataFrame:
-    """AlphaMissense pathogenicity for every CFTR missense change (REAL).
+    """AlphaMissense pathogenicity for every possible CFTR missense change (REAL).
 
     AlphaMissense (Cheng 2023, DeepMind) adapts AlphaFold into a variant-effect
     predictor. It is *unsupervised* w.r.t. clinical labels — trained on protein
@@ -245,27 +263,40 @@ def load_alphamissense() -> pd.DataFrame:
     ClinVar pathogenic/benign labels. That is why it is a good tool to compare
     *against* ClinVar without circular reasoning (see tools/10).
 
-    Score `am_pathogenicity` in [0,1]; AlphaMissense's own 3-class cut-points:
-        >= 0.564  -> "likely_pathogenic"
-        <= 0.340  -> "likely_benign"
-        else      -> "ambiguous"
+    Score `am_pathogenicity` in [0,1]; AlphaMissense's own calibrated cut-points:
+        >= 0.564  -> pathogenic
+        <= 0.340  -> benign
+        else      -> ambiguous
+    (`am_class` here carries the source file's own label text, "pathogenic" /
+    "benign" / "ambiguous" — DeepMind's other AlphaMissense release file, the
+    genomic-coordinate-keyed one, spells the same 3 classes "likely_pathogenic"
+    / "likely_benign"; same score, same cut-points, different label string.)
 
-    Returns: protein_variant, am_score, am_class, source (~8,597 rows).
-    Thin reader only: the fetch (streams DeepMind's genome-wide
-    AlphaMissense_hg38.tsv.gz and filters to UniProt P13569) lives in
-    tools/02_alphamissense.ipynb -> data/alphamissense_cftr.tsv.
+    Returns: protein_variant, am_score, am_class, am_release, source. True
+    saturation: every one of CFTR's 1,480 residues x 19 alternate amino acids
+    (28,120 rows, zero gaps) — this is DeepMind's protein-keyed release
+    (AlphaMissense_aa_substitutions.tsv.gz), not the genomic-SNV-keyed one,
+    specifically because a single-nucleotide-keyed file can only reach ~5.8 of
+    the 19 alternate amino acids per residue (one DNA base change can't reach
+    every codon), which undercounts "every possible missense change."
+    Thin reader only: the fetch (streams DeepMind's genome-wide, protein-keyed
+    release and filters to UniProt P13569) lives in tools/02_alphamissense.ipynb
+    -> data/alphamissense_cftr.tsv + data/alphamissense_cftr.release.json.
     """
     fp = DATA_DIR / "alphamissense_cftr.tsv"
     if not fp.exists():
         raise FileNotFoundError(
             f"{fp} missing. Run the fetch cell in tools/02_alphamissense.ipynb.")
     df = pd.read_csv(fp, sep="\t", low_memory=False)
-    # collapse multiple codon changes giving the same protein change → 1 row
-    df = (df.sort_values("am_pathogenicity", ascending=False)
-            .drop_duplicates("protein_variant", keep="first"))
     df = df.rename(columns={"am_pathogenicity": "am_score"})
+    release_fp = DATA_DIR / "alphamissense_cftr.release.json"
+    if release_fp.exists():
+        import json
+        df["am_release"] = json.loads(release_fp.read_text())["last_modified"]
+    else:
+        df["am_release"] = "unknown (pre-dates release tracking; re-run the fetch cell)"
     df["source"] = "REAL"
-    return df[["protein_variant", "am_score", "am_class", "source"]]
+    return df[["protein_variant", "am_score", "am_class", "am_release", "source"]]
 
 
 # =============================================================================
@@ -422,15 +453,24 @@ def load_eve(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     variants), built by the manual-download build cell in tools/03_eve.ipynb
     from the EVE release (evemodel.org, CFTR = UniProt P13569); keyed by the
     1-letter protein_variant. Columns:
-    protein_variant, eve_score, eve_class, source. The extract is gitignored, so
-    on a fresh clone this falls back to the tiny curated DEMO table (source='DEMO')
+    protein_variant, eve_score, eve_class, eve_release, source. `eve_release` is
+    the timestamp EVE's own team embedded in the release zip when they packaged
+    CFTR_HUMAN.csv (read from the zip's internal metadata, not a download date) —
+    see data/eve_cftr_2021-08.release.json. The extract is gitignored, so on a
+    fresh clone this falls back to the tiny curated DEMO table (source='DEMO')
     with a warning — pass strict=True to raise instead, or demo=True to request the
     DEMO table silently.
     """
     if not demo and EVE_CSV.exists():
         df = pd.read_csv(EVE_CSV, dtype={"protein_variant": "string"})
         df["source"] = "REAL"
-        return df[["protein_variant", "eve_score", "eve_class", "source"]]
+        release_fp = EVE_CSV.with_suffix("").with_suffix(".release.json")
+        if release_fp.exists():
+            import json
+            df["eve_release"] = json.loads(release_fp.read_text())["zip_member_packaged_at"]
+        else:
+            df["eve_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
+        return df[["protein_variant", "eve_score", "eve_class", "eve_release", "source"]]
     if not demo:
         _missing_extract("EVE", EVE_CSV, strict)
     d = _demo_frame()
@@ -449,13 +489,23 @@ def load_esm1b(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     1,480 residues) from `data/esm1b_cftr.csv`, built by the manual-download build
     cell in tools/04_esm1b.ipynb from the ntranoslab esm_variants release
     (canonical UniProt **P13569**). protein_variant
-    keyed. The extract is gitignored → fresh clone falls back to the DEMO table
-    (source='DEMO') with a warning; strict=True raises, demo=True is silent.
+    keyed. Columns: protein_variant, esm1b_score, esm1b_release, source.
+    `esm1b_release` is the timestamp the ntranoslab release zip embeds for
+    P13569_LLR.csv (read from the zip's own internal metadata, not a download
+    date) — see data/esm1b_cftr.release.json. The extract is gitignored → fresh
+    clone falls back to the DEMO table (source='DEMO') with a warning;
+    strict=True raises, demo=True is silent.
     """
     if not demo and ESM1B_CSV.exists():
         df = pd.read_csv(ESM1B_CSV, dtype={"protein_variant": "string"})
         df["source"] = "REAL"
-        return df[["protein_variant", "esm1b_score", "source"]]
+        release_fp = DATA_DIR / "esm1b_cftr.release.json"
+        if release_fp.exists():
+            import json
+            df["esm1b_release"] = json.loads(release_fp.read_text())["zip_member_packaged_at"]
+        else:
+            df["esm1b_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
+        return df[["protein_variant", "esm1b_score", "esm1b_release", "source"]]
     if not demo:
         _missing_extract("ESM1b", ESM1B_CSV, strict)
     d = _demo_frame()
@@ -474,22 +524,44 @@ def load_revel(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     'REVEL disagrees with ClinVar' can partly reflect label leakage, not
     independent evidence. Handled in tools/10.
 
-    REAL if the extract exists: genome-wide REVEL v1.3 for CFTR (~10,127 variants)
+    REAL if the extract exists: genome-wide REVEL v1.3 for CFTR (~9,730 variants)
     from `data/revel_cftr_v1.3.csv`, built by the manual-download build cell in
     tools/05_revel.ipynb. **Keyed by genomic
     coordinate** (chrom,pos,ref,alt) — the REVEL table has no protein position, so
     join it onto observed variants by coordinate, not protein_variant. (CFTR is
-    plus-strand, so the coding alleles match the genomic ref/alt directly.) Non-commercial license. The extract is gitignored → fresh
-    clone falls back to the DEMO table (source='DEMO') with a warning; strict=True
-    raises, demo=True is silent.
+    plus-strand, so the coding alleles match the genomic ref/alt directly.)
+
+    REVEL's raw file tags each row with the Ensembl transcript ID(s) that share
+    that exact amino-acid call at that site. This loader keeps ONLY rows tagged
+    with CFTR's canonical transcript (ENST00000003084, matching MANE NM_000492.4
+    — the same transcript every other join in this toolkit assumes). Raw rows
+    tagged only with other CFTR transcripts are dropped: verified against live
+    Ensembl VEP (tools/05_revel.ipynb) that REVEL's non-canonical-only rows here
+    don't match current transcript annotation at all (0/1096 agreement) and sit
+    on a transcript Ensembl itself flags as CDS-start-unconfirmed — not a second
+    opinion about CFTR biology, just stale/unreliable data.
+
+    `revel_release` is the timestamp the release zip embeds for its one member,
+    `revel_with_transcript_ids` (read from the zip's own internal metadata, not a
+    download date) — see data/revel_cftr_v1.3.release.json. Non-commercial
+    license. The extract is gitignored → fresh clone falls back to the DEMO table
+    (source='DEMO') with a warning; strict=True raises, demo=True is silent.
     """
+    CANONICAL_TRANSCRIPT = "ENST00000003084"  # MANE-matching CFTR transcript, same as every join in this toolkit
     if not demo and REVEL_CSV.exists():
         df = pd.read_csv(REVEL_CSV)
         df["chrom"] = df["chrom"].astype(str)
-        # REVEL can list >1 transcript row per genomic site; keep the max per site
-        df = (df.sort_values("revel_score", ascending=False)
+        is_canonical = df["ensembl_transcriptid"].apply(
+            lambda t: CANONICAL_TRANSCRIPT in str(t).split(";"))
+        df = (df[is_canonical]
                 .drop_duplicates(["chrom", "pos", "ref", "alt"]).reset_index(drop=True))
         df["source"] = "REAL"
+        release_fp = DATA_DIR / "revel_cftr_v1.3.release.json"
+        if release_fp.exists():
+            import json
+            df["revel_release"] = json.loads(release_fp.read_text())["zip_member_packaged_at"]
+        else:
+            df["revel_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
         return df
     if not demo:
         _missing_extract("REVEL", REVEL_CSV, strict)
@@ -504,17 +576,33 @@ def load_primateai(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     human & non-human primate missense variants as a proxy for benignity.
     Score in [0,1]; >= 0.803 ~ pathogenic. Medium circularity.
 
-    REAL if the extract exists: PrimateAI for CFTR from `data/primateai_cftr.csv`,
-    built by the manual-download build cell in tools/06_primateai.ipynb from the
-    **dbNSFP v5.0a** parquet. ⚠ COVERAGE:
-    dbNSFP's ClinVar-re-annotated subset, so ~1,976 observed CFTR variants (NOT
-    saturation). protein_variant + coordinate keyed. Non-commercial. The extract is
+    REAL if the extract exists: **PrimateAI's own native genome-wide release**
+    (Sundaram et al. 2018, Illumina BaseSpace, v0.2, hg38) for CFTR, from
+    `data/primateai_cftr.csv`, built by the manual-download build cell in
+    tools/06_primateai.ipynb. **Coordinate-keyed** (chrom,pos,ref,alt) — no
+    protein-position column in the source file, so bridge to protein_variant via
+    gnomAD when needed (see the worked-example panel in tools/06 for the
+    pattern). Near-saturating for CFTR: ~9,722 of the gene's 9,730 true possible
+    missense SNVs (verified in tools/05), scored under a single UCSC transcript
+    (`uc003vjd`) confirmed to be CFTR's canonical transcript (matches
+    ENST00000003084 / MANE NM_000492.4) — no multi-transcript ambiguity.
+    **Research use only** (Illumina, 2018 — see `data_manifest.json`; more
+    restrictive than a generic "non-commercial" note). `primateai_release` is
+    the release file's own embedded gzip timestamp (2018-09-04) — see
+    data/primateai_cftr.release.json. The extract is
     gitignored → fresh clone falls back to the DEMO table (source='DEMO') with a
     warning; strict=True raises, demo=True is silent.
     """
     if not demo and PRIMATEAI_CSV.exists():
-        df = pd.read_csv(PRIMATEAI_CSV, dtype={"protein_variant": "string"})
+        df = pd.read_csv(PRIMATEAI_CSV)
+        df["chrom"] = df["chrom"].astype(str)
         df["source"] = "REAL"
+        release_fp = DATA_DIR / "primateai_cftr.release.json"
+        if release_fp.exists():
+            import json
+            df["primateai_release"] = json.loads(release_fp.read_text())["gzip_embedded_date"]
+        else:
+            df["primateai_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
         return df
     if not demo:
         _missing_extract("PrimateAI", PRIMATEAI_CSV, strict)
@@ -803,6 +891,7 @@ if __name__ == "__main__":
         except FileNotFoundError as exc:
             print(f"{label:16}: MISSING — {str(exc).splitlines()[0]}")
 
+    _try("gnomAD all", load_gnomad_all)
     _try("gnomAD missense", load_gnomad_missense)
     _try("gnomAD noncoding", load_gnomad_noncoding)
     _try("AlphaMissense", load_alphamissense)
