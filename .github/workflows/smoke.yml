@@ -1,0 +1,41 @@
+name: smoke
+
+# Guards the README's "works on a fresh clone" claim. Deliberately data-free:
+# no dataset is downloaded, no notebook is executed. It asserts that a bare
+# clone behaves exactly as documented — DEMO fallbacks warn, live-fetch loaders
+# raise, and strict=True never degrades silently.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fresh-clone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: No data may ship in the repo
+        run: |
+          # data/ must contain nothing but its README; outputs/ must not be tracked.
+          tracked=$(git ls-files data/ | grep -v '^data/README.md$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::licensed data is tracked in git:"; echo "$tracked"; exit 1
+          fi
+          if git ls-files outputs/ | grep -q .; then
+            echo "::error::outputs/ is tracked in git"; exit 1
+          fi
+          echo "OK: no data or outputs tracked"
+
+      - name: Import and exercise the loaders on a bare clone
+        run: python .github/scripts/smoke_fresh_clone.py

@@ -29,3 +29,20 @@ archive/
 
 # internal planning docs, never published
 plan/
+
+# ── NOT YET AUDITED: kept locally, held back from GitHub ───────────────────
+# tools/01-06 and benchmark/00-01 have been through the audit pass; these have
+# not. They stay on disk and get re-published individually as each is audited.
+# Listed here as well as untracked so a future `git add -A` can't re-add them.
+tools/00_overview_and_setup.ipynb
+tools/07_spliceai.ipynb
+tools/08_pangolin.ipynb
+tools/09_cadd.ipynb
+tools/10_decircularization_benchmark.ipynb
+predict/
+
+# internal working docs, never published (see also plan/ above)
+LAY_READER_REVIEW.md
+PUBLISHING.md
+SEARCH_TOOL_DESIGN.md
+DATA_LICENSING_CONCERNS.md
