@@ -1,7 +1,7 @@
 {
   "_comment": "Provenance + reproducibility manifest for the toolkit's REAL data sources. IMPORTANT: by default nothing here ships in the repo -- all of data/ and outputs/ are gitignored. 'local_file' is where an extract lives AFTER you build it locally (see data/README.md); it is NOT committed. Every dataset's fetch/build code lives in the notebook named in 'built_by' -- there is no separate build_*.py or fetch_*.py script anymore, and no separate _tmp_fetch/ cache; everything lands in data/. derived_extract entries carry a sha256/rows so verify_data.py can detect drift in your local build; live_fetch entries are not hash-checked because their source can legitimately change between runs (ClinVar updates ~weekly).",
   "_publishable_comment": "'publishable' was added 2026-07-31 after re-verifying each dataset's redistribution terms; the per-dataset 'license' and 'publishable_note' fields below carry the reasoning. Values: 'yes' = permissive, safe to commit/host with attribution; 'noncommercial' = may be hosted by a strictly non-commercial tool with NC notice, but NOT committed to the public repo; 'no' = do not redistribute (ND, or redistribution unaddressed); 'confirm' = terms unresolved, treat as 'no' until checked.",
-  "ships_in_repo": false,
+  "ships_in_repo": "data/publishable/ only: gnomAD, AlphaMissense, EVE, ClinVar (4 of 8 per-CFTR extracts). ESM1b, REVEL, PrimateAI and CFTR2 are NOT redistributable — build them locally, see data/README.md.",
   "schema_version": 2,
   "license_review_date": "2026-07-31",
   "datasets": {
@@ -26,7 +26,7 @@
       "built_by": "tools/02_alphamissense.ipynb (fetch cell)",
       "source": "gs://dm_alphamissense/AlphaMissense_aa_substitutions.tsv.gz (protein-keyed bulk file, 216M rows genome-wide, streamed and filtered to UniProt P13569 -- switched 2026-08-07 from the similarly-named AlphaMissense_hg38.tsv.gz, which is genomic-SNV keyed and only reaches ~5.8 of the 19 possible alternate amino acids per residue via a single base change, undercounting true saturation; the protein-keyed file gives CFTR's exact 1,480x19=28,120 with zero gaps)",
       "version": "AlphaMissense v3 (Zenodo DOI 10.5281/zenodo.8208688, uploaded 2024-03-13; original v1 published 2023-09-19 alongside Cheng et al. 2023, PMID 37733863); filtered to UniProt P13569. GCS bucket URL has no version string, so the fetch cell records the live file's HTTP Last-Modified/ETag into data/alphamissense_cftr.release.json, exposed via load_alphamissense() as the am_release column.",
-      "license": "CC BY 4.0 \u2014 DeepMind relicensed predictions from CC BY-NC-SA on 2024-03-13, lifting the NonCommercial restriction. Attribution required. Verified 2026-07-31.",
+      "license": "CC BY 4.0 — DeepMind relicensed predictions from CC BY-NC-SA on 2024-03-13, lifting the NonCommercial restriction. Attribution required. Verified 2026-07-31.",
       "publishable": "yes",
       "note": "am_class label text in this file is 'pathogenic'/'benign'/'ambiguous' (no 'likely_' prefix) -- same score and 0.340/0.564 cut-points as the hg38 file's 'likely_pathogenic'/'likely_benign' labels, just different label text.",
       "rows": 28120,
@@ -43,7 +43,8 @@
       "publishable": "yes",
       "note": "ClinVar updates ~weekly; every fetch records its resolved version into data/clinvar_cftr.release.json and the clinvar_release column. All CFTR/GRCh38 rows are kept (not just missense) -- includes VariationID, Name, Type, ClinicalSignificance, ClinSigSimple, ReviewStatus.",
       "rows": "~6,100+ (drifts by design; see version field)",
-      "local_file": "data/clinvar_cftr.tsv"
+      "local_file": "data/clinvar_cftr.tsv",
+      "publishable_note": "SHIPPED in data/publishable/. CC0 1.0 / U.S. public domain — no redistribution restriction. The shipped copy is a point-in-time snapshot of a rolling weekly release; the exact version is pinned by the clinvar_release column and clinvar_cftr.release.json. Re-fetch for a current view."
     },
     "cftr2": {
       "notebook": "benchmark/01",
@@ -56,8 +57,9 @@
       "source": "https://cftr2.org variant-list history tab",
       "version": "Release date is read from the workbook's own header and recorded in data/cftr2_cftr.release.json (currently '30 January 2026'). No historical archive exists on cftr2.org (checked) -- reproducing a past run means manually sourcing that older workbook yourself.",
       "retrieval_date": "2026-07-01",
-      "license": "CFTR2 public data-use terms (cite CFTR2); expert-panel calls also in ClinVar under CC0",
-      "publishable": "yes"
+      "license": "CFTR2 Legal Terms & Conditions (cftr2.org/terms_of_use), §12 Intellectual Property: 'No portion of the Content may be reprinted, republished, modified, or distributed in any form without the express written permission of CFTR2, CFF, and Johns Hopkins', and separately prohibits creating derivative works; download permitted 'solely for your own non-commercial use'. Footer: 'clinical, research, and educational uses only. All other rights reserved.' Cite CFTR2. NB the expert-panel CALLS are separately available in ClinVar under CC0 — use that route if you need shareable CFTR2-derived classifications.",
+      "publishable": "no",
+      "publishable_note": "DO NOT SHIP. Verified 2026-08-11 against cftr2.org Legal Terms & Conditions: §12 forbids republishing or distributing any portion of the Content and forbids creating derivative works without express written permission. data/cftr2_cftr.csv is BOTH a derivative work and a redistribution. Previously (incorrectly) marked 'yes' with no recorded justification. The CI gate in .github/workflows/smoke.yml blocks any tracked path matching 'cftr2_cftr'."
     },
     "eve_cftr": {
       "notebook": "tools/03",
@@ -70,7 +72,7 @@
       "source": "https://evemodel.org (EVE, Frazer et al. 2021, PMID 34707284)",
       "version": "EVE release label '2021-08' (CFTR = UniProt P13569). No live HTTP endpoint to date-check (manual zip download), so the build cell instead reads the zip's own embedded per-file timestamp for variant_files/CFTR_HUMAN.csv (zipfile.ZipInfo.date_time = 2021-07-08T21:00:44) into data/eve_cftr_2021-08.release.json, exposed via load_eve() as the eve_release column.",
       "retrieval_date": "2026-07-12",
-      "license": "MIT \u2014 confirmed 2026-08-07 on evemodel.org's Bulk Protein Data and Single Protein Data download pages, both stating verbatim: \"The downloading of this data, and of all other data on this site, falls under the MIT License.\" Covers the scores themselves, not just the GitHub code (also MIT, copyright Pascal Notin 2021). No NC or ShareAlike restriction.",
+      "license": "MIT — confirmed 2026-08-07 on evemodel.org's Bulk Protein Data and Single Protein Data download pages, both stating verbatim: \"The downloading of this data, and of all other data on this site, falls under the MIT License.\" Covers the scores themselves, not just the GitHub code (also MIT, copyright Pascal Notin 2021). No NC or ShareAlike restriction.",
       "publishable": "yes"
     },
     "esm1b": {
@@ -82,9 +84,9 @@
       "source": "HuggingFace Space ntranoslab/esm_variants (ALL_hum_isoforms_ESM1b_LLR.zip)",
       "version": "ESM1b LLR, canonical UniProt P13569 (Brandes et al. 2023, PMID 37563329). No live HTTP endpoint to date-check (manual zip download), so the build cell instead reads the zip's own embedded per-file timestamp for content/ALL_hum_isoforms_ESM1b_LLR/P13569_LLR.csv (zipfile.ZipInfo.date_time = 2022-05-06T05:28:04) into data/esm1b_cftr.release.json, exposed via load_esm1b() as the esm1b_release column.",
       "retrieval_date": "2026-07-13",
-      "license": "see ntranoslab esm-variants repo (MIT code); scores per publication",
-      "publishable": "confirm",
-      "publishable_note": "Code is MIT; the score terms are 'per publication' and not an explicit redistribution license. Likely permissive but confirm with the ntranoslab/esm-variants repo or Brandes et al. before hosting.",
+      "license": "Scores CC BY-NC 4.0 (HuggingFace Space ntranoslab/esm_variants, declared license); the ntranoslab/esm-variants GitHub code is MIT. Cite Brandes et al. 2023, Nat Genet, PMID 37563329.",
+      "publishable": "noncommercial",
+      "publishable_note": "DO NOT SHIP in this MIT repo. Resolved 2026-08-11: the ntranoslab/esm-variants GitHub repo is MIT, but that MIT text scopes to 'the Software'. The artifact this build actually reads (ALL_hum_isoforms_ESM1b_LLR.zip) is distributed by the HuggingFace Space ntranoslab/esm_variants, whose declared license is CC BY-NC 4.0. NC data inside an MIT-licensed repo is an incompatible pair — same reasoning as SpliceAI. A strictly non-commercial tool may host it with attribution.",
       "sha256": "236b39060d7989b783e943819db19c16cce38604bfe468335755cc3642dab84d",
       "rows": 28120
     },
@@ -99,7 +101,7 @@
       "retrieval_date": "2026-07-13",
       "license": "free for NON-COMMERCIAL use (contact authors otherwise)",
       "publishable": "no",
-      "publishable_note": "Grants USE, not redistribution \u2014 republishing is unaddressed. Do not host or commit. Email the REVEL authors for redistribution permission, or query dbNSFP/live sources at request time.",
+      "publishable_note": "Grants USE, not redistribution — republishing is unaddressed. Do not host or commit. Email the REVEL authors for redistribution permission, or query dbNSFP/live sources at request time.",
       "note": "local_file has 10,826 raw rows (all CFTR transcripts REVEL scored) plus an ensembl_transcriptid column added 2026-08-07; load_revel() filters to only the 9,730 rows tagged with CFTR's canonical transcript (ENST00000003084) -- verified against live Ensembl VEP that the other 1,096 rows (transcript ENST00000468795, CDS-start-unconfirmed per Ensembl) don't match current annotation at all (0/1096) and aren't a reliable second opinion.",
       "sha256": "7d514051a4904d6f605599afb140af179d5559d31a13f2a58c37053ef5b6abd2",
       "rows": 10826
@@ -126,11 +128,11 @@
       "sha256": "7d169ef93009bc4f3114ee3f95b9bf7798497c15b9571e2a142b0a0600c3d955",
       "rows": 2075730,
       "built_by": "tools/07_spliceai.ipynb (build cell; manual VCF download, .tbi seek) — notebook pending audit, not published",
-      "raw_source": "spliceai_scores.masked.snv.hg38.vcf.gz (~28.6 GB) + spliceai_scores.raw.indel.hg38.vcf.gz (~69.3 GB) \u2014 both external, not committed",
+      "raw_source": "spliceai_scores.masked.snv.hg38.vcf.gz (~28.6 GB) + spliceai_scores.raw.indel.hg38.vcf.gz (~69.3 GB) — both external, not committed",
       "source": "Illumina BaseSpace share https://basespace.illumina.com/s/otSPW8hnhaZR ('Predicting splicing from primary sequence' / genome_scores_v1.3)",
-      "version": "SpliceAI precomputed v1.3, GRCh38; Gencode v24, distance 50bp. MIXED score_type: 566,106 SNVs from the MASKED file + 1,509,624 indels from the RAW file (masked.indel is commonly a 0-byte failed download). Rows carry score_type/variant_class. Masked vs raw agree exactly on 95.8% of CFTR SNVs (mean |diff| 0.0019) but 113 SNVs cross the 0.5 HIGH cut \u2014 do not compare a masked score against a raw one.",
+      "version": "SpliceAI precomputed v1.3, GRCh38; Gencode v24, distance 50bp. MIXED score_type: 566,106 SNVs from the MASKED file + 1,509,624 indels from the RAW file (masked.indel is commonly a 0-byte failed download). Rows carry score_type/variant_class. Masked vs raw agree exactly on 95.8% of CFTR SNVs (mean |diff| 0.0019) but 113 SNVs cross the 0.5 HIGH cut — do not compare a masked score against a raw one.",
       "retrieval_date": "2026-07-12",
-      "license": "CC BY-NC 4.0 (Jaganathan et al. 2019, PMID 30661751) \u2014 attribute SpliceAI+Illumina; do NOT commit raw VCF; publishing derived extract needs NC notice (plan R43)",
+      "license": "CC BY-NC 4.0 (Jaganathan et al. 2019, PMID 30661751) — attribute SpliceAI+Illumina; do NOT commit raw VCF; publishing derived extract needs NC notice (plan R43)",
       "publishable": "noncommercial",
       "publishable_note": "CC BY-NC: a strictly non-commercial tool may serve it with attribution + NC notice; do NOT commit to the public repo. Alternative: query the Broad SpliceAI lookup API live instead of hosting the extract."
     },
@@ -145,7 +147,7 @@
       "retrieval_date": "2026-07-18",
       "license": "Pangolin non-commercial; cite Zeng & Li 2022",
       "publishable": "noncommercial",
-      "note": "Model output you generated yourself (better footing than redistributing a licensor's table), but the model license is non-commercial \u2014 a strictly non-commercial tool may host it with citation; do NOT commit to the public repo. REAL model output. Default scope (SCOPE = \"cftr2\" in the build cell) runs the model over every CFTR2 variant with GRCh38 coords: ~1,892 of 2,097 scored, SNVs AND indels, source=REAL. SCOPE = \"curated\" scores only the 5 classic CF splice alleles and stays source=DEMO \u2014 the label follows COVERAGE, not the model. Validated against real SpliceAI (c.2988+1G>A: Pangolin 0.86 vs SpliceAI 0.99); across 311 non-coding variants both score, r=0.976. Unscorable rows are kept with a skip_reason (204 lack CFTR2 coords; 1 event >100 bp)."
+      "note": "Model output you generated yourself (better footing than redistributing a licensor's table), but the model license is non-commercial — a strictly non-commercial tool may host it with citation; do NOT commit to the public repo. REAL model output. Default scope (SCOPE = \"cftr2\" in the build cell) runs the model over every CFTR2 variant with GRCh38 coords: ~1,892 of 2,097 scored, SNVs AND indels, source=REAL. SCOPE = \"curated\" scores only the 5 classic CF splice alleles and stays source=DEMO — the label follows COVERAGE, not the model. Validated against real SpliceAI (c.2988+1G>A: Pangolin 0.86 vs SpliceAI 0.99); across 311 non-coding variants both score, r=0.976. Unscorable rows are kept with a skip_reason (204 lack CFTR2 coords; 1 event >100 bp)."
     },
     "cadd": {
       "notebook": "tools/09 (pending audit, not published)",

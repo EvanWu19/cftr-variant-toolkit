@@ -1,14 +1,16 @@
 # `data/` — how to fetch and build every extract
 
-> **Almost nothing in this folder is committed.** `data/` and `outputs/` are
-> gitignored (see the repo `.gitignore`) apart from this README and
-> [`publishable/`](publishable/LICENSES.md) — three extracts whose licenses were
-> verified permissive (gnomAD ODbL+MIT, AlphaMissense CC BY 4.0, EVE MIT). No other
-> CSV, parquet, or raw archive ships; the rest are license-restricted or
-> non-commercial and are **not redistributed** here.
+> **Four of the eight extracts are committed**, in
+> [`publishable/`](publishable/LICENSES.md) — gnomAD (ODbL+MIT), AlphaMissense
+> (CC BY 4.0), EVE (MIT) and ClinVar (CC0). Everything else under `data/`, and all of
+> `outputs/`, is gitignored: **ESM1b** (scores CC BY-NC), **REVEL** (non-commercial),
+> **PrimateAI** (Illumina "research use only") and **CFTR2** (terms forbid
+> republishing any portion, including derived extracts) are **not redistributed**
+> here — build them locally with the recipes below.
 >
-> Note the loaders read `data/<file>`, **not** `data/publishable/<file>` — copy the
-> three across (or run their fetch cell) before they resolve as REAL.
+> The loaders resolve `data/<file>` first and fall back to `data/publishable/<file>`,
+> so the four shipped extracts work on a fresh clone with no setup, and a local build
+> always takes precedence over the shipped snapshot.
 
 **There is one data folder now, not two.** Every dataset — whether it's pulled
 live from an API, filtered from a bulk download, or produced by running a model
@@ -26,7 +28,7 @@ re-running. This table is the summary; the notebook cell is the actual recipe.
 > audit pass the published ones have, so they are not in this repo yet. The
 > `raw_source` / `source` / `license` columns still tell you exactly what to
 > download and under what terms; you just have to write the parse step yourself
-> until those notebooks land. See the repo README's "Not yet published" section.
+> until those notebooks land.
 
 Once you have rebuilt an extract, `python verify_data.py` checks its `sha256`/row
 count against [`../data_manifest.json`](../data_manifest.json) (the machine-readable

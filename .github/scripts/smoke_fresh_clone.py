@@ -1,12 +1,13 @@
 """Assert a bare clone behaves exactly as README.md documents.
 
-Runs with no data/ present. Three contracts:
+Runs with no locally built data/ — only what git actually ships. Contracts:
 
-1. The three live-fetched sources (gnomAD, AlphaMissense, ClinVar) raise
-   FileNotFoundError — they have no DEMO fallback, so a missing extract must
-   never look like a successful load.
-2. The manual-download sources fall back to a DEMO table AND warn. A silent
-   fallback is the specific failure this repo is built to prevent.
+1. The four license-verified extracts in data/publishable/ (gnomAD, AlphaMissense,
+   EVE, ClinVar) load as source='REAL' with NO setup step. This is the promise the
+   README makes to anyone who clones the repo.
+2. The four that may not be redistributed (ESM1b, REVEL, PrimateAI, CFTR2) — plus
+   the two splice loaders whose notebooks aren't published — fall back to a DEMO
+   table AND warn. A silent fallback is the specific failure this repo prevents.
 3. strict=True raises instead of degrading, for every fallback loader.
 
 Run locally the same way CI does:  python .github/scripts/smoke_fresh_clone.py
@@ -34,36 +35,46 @@ def check(label: str, condition: bool, detail: str = "") -> None:
         failures.append(label)
 
 
-if (tk.DATA_DIR / "cftr2_cftr.csv").exists():
+# Guard: if someone runs this in a working checkout with built extracts, the DEMO
+# assertions below would pass for the wrong reason.
+locally_built = [p.name for p in (
+    tk.DATA_DIR / "esm1b_cftr.csv",
+    tk.DATA_DIR / "revel_cftr_v1.3.csv",
+    tk.DATA_DIR / "primateai_cftr.csv",
+    tk.DATA_DIR / "cftr2_cftr.csv",
+) if p.exists()]
+if locally_built:
     sys.exit(
-        f"refusing to run: {tk.DATA_DIR} holds built extracts, so this would not be "
-        "testing fresh-clone behaviour. Point DATA_DIR at an empty tree instead."
+        f"refusing to run: {tk.DATA_DIR} holds locally built extracts {locally_built}, "
+        "so this would not be testing fresh-clone behaviour. Run against a checkout of "
+        "tracked files only."
     )
 
-print("1. live-fetched loaders raise FileNotFoundError (no DEMO fallback)")
-for name, loader in [
-    ("gnomAD", tk.load_gnomad_all),
-    ("AlphaMissense", tk.load_alphamissense),
-    ("ClinVar", tk.load_clinvar),
-]:
-    try:
-        loader()
-    except FileNotFoundError:
-        check(f"{name} raises FileNotFoundError", True)
-    except Exception as exc:  # noqa: BLE001
-        check(f"{name} raises FileNotFoundError", False, f"got {type(exc).__name__}: {exc}")
-    else:
-        check(f"{name} raises FileNotFoundError", False, "returned a frame instead")
-
-print("2. manual-download loaders fall back to DEMO *and* warn")
-fallback = {
-    "CFTR2": tk.load_cftr2,
+print("1. the four shipped extracts load as REAL with no setup")
+shipped = {
+    "gnomAD": tk.load_gnomad_all,
+    "AlphaMissense": tk.load_alphamissense,
     "EVE": tk.load_eve,
-    "ESM1b": tk.load_esm1b,
-    "REVEL": tk.load_revel,
-    "PrimateAI": tk.load_primateai,
-    "SpliceAI": tk.load_spliceai,
-    "Pangolin": tk.load_pangolin,
+    "ClinVar": tk.load_clinvar,
+}
+for name, loader in shipped.items():
+    try:
+        df = loader()
+    except Exception as exc:  # noqa: BLE001
+        check(f"{name} loads on a bare clone", False, f"raised {type(exc).__name__}: {exc}")
+        continue
+    check(f"{name} loads on a bare clone", len(df) > 0)
+    check(f"{name} is labelled REAL", set(df["source"].unique()) == {"REAL"},
+          f"got {sorted(set(df['source'].unique()))}")
+
+print("2. the non-redistributable extracts fall back to DEMO *and* warn")
+fallback = {
+    "ESM1b": tk.load_esm1b,        # scores are CC BY-NC (HF Space) -- cannot ship in an MIT repo
+    "REVEL": tk.load_revel,        # non-commercial
+    "PrimateAI": tk.load_primateai,  # Illumina "research use only"
+    "CFTR2": tk.load_cftr2,        # cftr2.org terms forbid redistribution + derivative works
+    "SpliceAI": tk.load_spliceai,  # CC BY-NC 4.0
+    "Pangolin": tk.load_pangolin,  # non-commercial
 }
 for name, loader in fallback.items():
     with warnings.catch_warnings(record=True) as caught:
@@ -85,7 +96,12 @@ for name, loader in fallback.items():
     else:
         check(f"{name} strict=True raises", False, "returned a frame instead")
 
-print("4. shared helpers work with no data at all")
+print("4. a locally built extract always wins over the shipped snapshot")
+probe = tk.DATA_DIR / "gnomad_cftr_all.tsv"
+check("shipped copy is used when data/ has no local build",
+      not probe.exists() and tk._extract(probe).parent.name == "publishable")
+
+print("5. shared helpers work with no data at all")
 check("three_to_one('Tyr161Cys') == 'Y161C'", tk.three_to_one("Tyr161Cys") == "Y161C")
 check("call_from_score(0.9, 'am') == 'pathogenic'",
       tk.call_from_score(0.9, "am") == "pathogenic")

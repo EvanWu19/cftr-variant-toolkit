@@ -33,8 +33,9 @@ archive/
 # stray / non-CFTR working files
 *.parquet
 
-# internal planning docs, never published
+# internal planning docs and working notes, never published
 plan/
+TODO.md
 
 # ── NOT YET AUDITED: kept locally, held back from GitHub ───────────────────
 # tools/01-06 and benchmark/00-01 have been through the audit pass; these have

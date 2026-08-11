@@ -86,8 +86,25 @@ import pandas as pd
 # ─────────────────────────────────────────────────────────────────────────────
 PKG_DIR  = Path(__file__).resolve().parent
 DATA_DIR = PKG_DIR / "data"           # gitignored; built by each notebook's fetch/build cell
-OUT_DIR  = PKG_DIR / "outputs"
-OUT_DIR.mkdir(exist_ok=True)
+PUBLISHABLE_DIR = DATA_DIR / "publishable"   # the 4 extracts whose licenses allow shipping
+
+
+def _extract(path: Path) -> Path:
+    """Resolve an extract path: a locally built data/<name> wins, else the shipped
+    data/publishable/<name>.
+
+    Four extracts (gnomAD, AlphaMissense, EVE, ClinVar) are license-verified and ship
+    with the repo, so a fresh clone loads them as REAL with no setup. A local build
+    always takes precedence -- re-running a fetch cell writes data/<name> and that is
+    what you get back, so a newer local copy is never shadowed by the shipped snapshot.
+    Resolution happens per call, not at import, so a file built mid-session is picked
+    up without reimporting. Returns the canonical data/<name> when neither exists, so
+    error messages point at where the file is supposed to go.
+    """
+    if path.exists():
+        return path
+    shipped = PUBLISHABLE_DIR / path.name
+    return shipped if shipped.exists() else path
 
 CFTR2_CSV     = DATA_DIR / "cftr2_cftr.csv"                 # benchmark/01
 EVE_CSV       = DATA_DIR / "eve_cftr_2021-08.csv"            # tools/03
@@ -165,7 +182,7 @@ TOOL_REGISTRY = {
 }
 
 # Publication / training-freeze year per tool — the anchor for the temporal-leakage
-# reference (README.md, Circularity). A variant's clinical label can only leak into a
+# reference (tools/05_revel.ipynb section 2). A variant's clinical label can only leak into a
 # tool's training data postdates the variant's first pathogenic report AND the tool
 # learned from clinical labels. `label_supervised` marks the tools where a post-report
 # training year is a *direct* leakage risk (REVEL); unsupervised/proxy tools carry only
@@ -213,7 +230,7 @@ def load_gnomad_all() -> pd.DataFrame:
     data/gnomad_cftr_all.tsv lives in tools/01_gnomad.ipynb (no precomputed
     per-gene download exists, so the notebook queries the live API directly).
     """
-    fp = DATA_DIR / "gnomad_cftr_all.tsv"
+    fp = _extract(DATA_DIR / "gnomad_cftr_all.tsv")
     if not fp.exists():
         raise FileNotFoundError(
             f"{fp} missing. Run the fetch cell in tools/01_gnomad.ipynb "
@@ -262,7 +279,7 @@ def load_alphamissense() -> pd.DataFrame:
     predictor. It is *unsupervised* w.r.t. clinical labels — trained on protein
     sequences/structures plus weak population-frequency calibration, NOT on
     ClinVar pathogenic/benign labels. That is why it is a good tool to compare
-    *against* ClinVar without circular reasoning (see README.md, Circularity).
+    *against* ClinVar without circular reasoning (see tools/05_revel.ipynb section 2).
 
     Score `am_pathogenicity` in [0,1]; AlphaMissense's own calibrated cut-points:
         >= 0.564  -> pathogenic
@@ -284,13 +301,13 @@ def load_alphamissense() -> pd.DataFrame:
     release and filters to UniProt P13569) lives in tools/02_alphamissense.ipynb
     -> data/alphamissense_cftr.tsv + data/alphamissense_cftr.release.json.
     """
-    fp = DATA_DIR / "alphamissense_cftr.tsv"
+    fp = _extract(DATA_DIR / "alphamissense_cftr.tsv")
     if not fp.exists():
         raise FileNotFoundError(
             f"{fp} missing. Run the fetch cell in tools/02_alphamissense.ipynb.")
     df = pd.read_csv(fp, sep="\t", low_memory=False)
     df = df.rename(columns={"am_pathogenicity": "am_score"})
-    release_fp = DATA_DIR / "alphamissense_cftr.release.json"
+    release_fp = _extract(DATA_DIR / "alphamissense_cftr.release.json")
     if release_fp.exists():
         import json
         df["am_release"] = json.loads(release_fp.read_text())["last_modified"]
@@ -310,7 +327,7 @@ def load_clinvar() -> pd.DataFrame:
     Conflicting) submitted by labs. It is the de-facto clinical "truth" set —
     but treat it with care: assertions vary in review status (star rating) and,
     crucially, some predictors were TRAINED on ClinVar-lineage labels, so
-    comparing those predictors to ClinVar is partly circular (README.md, Circularity).
+    comparing those predictors to ClinVar is partly circular (tools/05_revel.ipynb section 2).
 
     Returns EVERY CFTR/GRCh38 row ClinVar has (~6,100+, not just the ones with
     a simple missense name) — protein_variant is '' for anything that doesn't
@@ -335,7 +352,7 @@ def load_clinvar() -> pd.DataFrame:
     lives in benchmark/00_clinvar.ipynb -> data/clinvar_cftr.tsv +
     data/clinvar_cftr.release.json.
     """
-    fp = DATA_DIR / "clinvar_cftr.tsv"
+    fp = _extract(DATA_DIR / "clinvar_cftr.tsv")
     if not fp.exists():
         raise FileNotFoundError(f"{fp} missing. Run the fetch cell in benchmark/00_clinvar.ipynb.")
     df = pd.read_csv(fp, sep="\t", low_memory=False)
@@ -349,7 +366,7 @@ def load_clinvar() -> pd.DataFrame:
         "variant_type":   df.get("Type"),
         "review_status":  df.get("ReviewStatus"),
     })
-    release_fp = DATA_DIR / "clinvar_cftr.release.json"
+    release_fp = _extract(DATA_DIR / "clinvar_cftr.release.json")
     if release_fp.exists():
         import json
         out["clinvar_release"] = json.loads(release_fp.read_text())["resolved_version"]
@@ -462,10 +479,11 @@ def load_eve(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     with a warning — pass strict=True to raise instead, or demo=True to request the
     DEMO table silently.
     """
-    if not demo and EVE_CSV.exists():
-        df = pd.read_csv(EVE_CSV, dtype={"protein_variant": "string"})
+    eve_fp = _extract(EVE_CSV)
+    if not demo and eve_fp.exists():
+        df = pd.read_csv(eve_fp, dtype={"protein_variant": "string"})
         df["source"] = "REAL"
-        release_fp = EVE_CSV.with_suffix("").with_suffix(".release.json")
+        release_fp = _extract(EVE_CSV.with_suffix("").with_suffix(".release.json"))
         if release_fp.exists():
             import json
             df["eve_release"] = json.loads(release_fp.read_text())["zip_member_packaged_at"]
@@ -523,7 +541,7 @@ def load_revel(demo: bool = False, strict: bool = False) -> pd.DataFrame:
 
     ⚠ CIRCULARITY: REVEL's training labels share lineage with ClinVar/HGMD, so
     'REVEL disagrees with ClinVar' can partly reflect label leakage, not
-    independent evidence. See README.md, Circularity.
+    independent evidence. See tools/05_revel.ipynb section 2.
 
     REAL if the extract exists: genome-wide REVEL v1.3 for CFTR (~9,730 variants)
     from `data/revel_cftr_v1.3.csv`, built by the manual-download build cell in
@@ -622,7 +640,7 @@ def load_cftr2(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     ⚠ It is NOT an independent gold standard: CFTR2 and ClinVar share clinical/
     patient evidence, ClinVar entries cite CFTR2, and CFTR2 informs the ACMG CFTR
     guidance that ClinVar submitters follow — so benchmarking against it is not
-    circularity-free (README.md, Circularity).
+    circularity-free (tools/05_revel.ipynb section 2).
 
     The full public CFTR2 variant list (~2,097 variants), built from a
     manually-downloaded cftr2.org workbook by the build cell in
