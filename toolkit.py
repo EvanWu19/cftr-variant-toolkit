@@ -48,14 +48,14 @@ Real vs demo — and what a fresh clone actually ships
         CFTR2 (~2,097, benchmark/01), EVE (~26,809, tools/03),
         ESM1b (~28,120 saturation, tools/04), REVEL (~10,127 unique coordinates,
         non-commercial, tools/05), PrimateAI (~1,976, dbNSFP ClinVar subset,
-        non-commercial, tools/06), SpliceAI (~566k SNVs; CC BY-NC 4.0)
+        non-commercial, tools/06), SpliceAI (~2.08M records = 566k SNVs +
+        1.51M indels; CC BY-NC 4.0, tools/07), Pangolin (~1,892 of the 2,097
+        CFTR2 targets, produced by running the model locally; non-commercial,
+        tools/08)
       REAL, queried live per-call (no local data needed):
         CADD v1.7 REST API
-      DEMO always (hand-curated illustrative values — NOT real predictions):
-        Pangolin (9 curated splice variants only; a local model run also gives a REAL
-        model-run path over the full CFTR2 list)
 
-    => The six build-locally loaders fall back to a tiny DEMO table when their
+    => The seven build-locally loaders fall back to a tiny DEMO table when their
        extract is missing. Pass ``strict=True`` to raise instead of silently
        degrading; the default emits a warning. See ``data/README.md`` for the
        provenance summary and ``data_manifest.json`` for exact hashes/licenses.
@@ -108,11 +108,11 @@ def _extract(path: Path) -> Path:
 
 CFTR2_CSV     = DATA_DIR / "cftr2_cftr.csv"                 # benchmark/01
 EVE_CSV       = DATA_DIR / "eve_cftr_2021-08.csv"            # tools/03
-SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # see data/README.md
+SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # tools/07
 ESM1B_CSV     = DATA_DIR / "esm1b_cftr.csv"                  # tools/04
 REVEL_CSV     = DATA_DIR / "revel_cftr_v1.3.csv"              # tools/05
 PRIMATEAI_CSV = DATA_DIR / "primateai_cftr.csv"               # tools/06
-PANGOLIN_CSV  = DATA_DIR / "pangolin_cftr.csv"                # see data/README.md
+PANGOLIN_CSV  = DATA_DIR / "pangolin_cftr.csv"                # tools/08
 
 # CFTR locus, GRCh38. CFTR is on the PLUS (forward) strand of chromosome 7 (7q31.2),
 # so cDNA/coding alleles read the same as the genomic ref/alt — no complementing.
@@ -740,7 +740,10 @@ def load_splice_demo() -> pd.DataFrame:
 
     ⚠ The DS_/pangolin numbers here are DEMO (hand-authored). For real scores:
     SpliceAI — precomputed VCF from Illumina BaseSpace (login) or the Broad
-    SpliceAI-lookup app; Pangolin — run the model locally (GPU). See README.
+    SpliceAI-lookup app (tools/07); Pangolin — run the model locally (tools/08).
+    tools/07 joins this table onto real SpliceAI by coordinate and shows that most
+    of these rows do not reproduce at all: the coordinates are hand-entered and
+    several do not match GRCh38.
     """
     df = pd.DataFrame(KNOWN_CF_SPLICE_VARIANTS, columns=_SPLICE_COLS)
     df["spliceai_ds_max"] = df[["DS_AG", "DS_AL", "DS_DG", "DS_DL"]].max(axis=1)
@@ -752,26 +755,39 @@ def load_spliceai(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     """SpliceAI delta scores for CFTR — REAL if the extract exists.
 
     REAL if the extract exists: the precomputed Illumina **SpliceAI v1.3** scores for
-    the whole CFTR region (`data/spliceai_cftr_2021_v1.3.csv`, ~2.08 M records), built
-    by a manual-download build cell (a hand-rolled .tbi seek, since pysam doesn't build
-    on Windows) -- see data/README.md; the SpliceAI notebook itself is pending audit and
-    not published yet. Keyed by genomic coordinate (chrom,pos,ref,alt); columns
-    DS_AG/DS_AL/DS_DG/DS_DL and spliceai_ds_max (>= 0.5 high, >= 0.2 moderate). Join
-    onto observed variants (e.g. gnomAD non-coding) by coordinate to build the real A2
-    splice worklist.
+    the whole CFTR region (`data/spliceai_cftr_2021_v1.3.csv`, 2,075,730 records),
+    built by the manual-download build cell in tools/07_spliceai.ipynb (a hand-rolled
+    .tbi seek, since pysam doesn't build on Windows). Keyed by genomic coordinate
+    (chrom,pos,ref,alt); columns DS_AG/DS_AL/DS_DG/DS_DL and spliceai_ds_max
+    (>= 0.5 high, >= 0.2 moderate). Join onto observed variants (e.g. gnomAD
+    non-coding) by coordinate to build the real splice worklist.
 
-    **SNVs *and* indels** (~566 k + ~1.51 M). The indels matter: no missense predictor
-    can score one, so without them every CFTR2 deletion/insertion was invisible to every
-    tool — including F508del, which SpliceAI scores DS_max = 0.01 (correct: it is a
-    folding defect, not a splice one).
+    **The four deltas are the raw model output and are kept**; spliceai_ds_max is
+    just their max, computed by the build cell and stored beside them, so the collapse
+    is always reversible. The type of change is the biology (a high DS_DL means a real
+    donor is being lost, a high DS_AG means a cryptic exon may be forming) — DS_max
+    alone only says how alarming, so read the deltas, not just the headline. `symbol`
+    carries the gene the release annotated the score against, kept so the CFTR filter
+    is auditable rather than assumed.
+
+    **SNVs *and* indels** (566,106 + 1,509,624). The indels matter: no missense
+    predictor can score one, so without them every CFTR2 deletion/insertion would be
+    invisible to every tool here — including F508del, which SpliceAI scores
+    DS_max = 0.01 (correct: it is a folding defect, not a splice one).
 
     ⚠ The extract is usually **MIXED masked/raw**: Illumina's `masked.indel` release is
     very often a 0-byte failed download, so the builder falls back to `raw.indel` while
     SNVs come from `masked.snv`. Each row carries `score_type` ('masked'/'raw') and
-    `variant_class` ('snv'/'indel'). Raw does not zero out biologically implausible
-    directions, so raw >= masked for the same variant: across the CFTR SNVs the two
-    agree exactly 95.8% of the time (mean |diff| 0.0019), but 113 cross the 0.5 cut.
+    `variant_class` ('snv'/'indel'). Masking is an annotation filter applied after the
+    model runs, and it is all-or-nothing: a delta is either untouched or set to exactly
+    0, so raw >= masked always. Across the 566,106 CFTR SNVs the two agree exactly
+    95.8% of the time (mean |diff| 0.0019) and 113 cross the 0.5 cut.
     Don't compare a masked score against a raw one and call the difference biology.
+
+    `spliceai_release` is the version the source VCFs state about *themselves* — the
+    `##fileDate` and the SpliceAI annotation version in their own `##INFO` header line,
+    not a download date — read from data/spliceai_cftr_2021_v1.3.release.json, which
+    the build cell writes alongside the extract.
 
     The extract is gitignored (CC BY-NC 4.0) → fresh clone falls back to the 9
     curated variants (load_splice_demo) with a warning; strict=True raises,
@@ -782,8 +798,15 @@ def load_spliceai(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     LICENSE: SpliceAI scores are CC BY-NC 4.0 (Jaganathan et al. 2019, PMID
     30661751). The 28.6 GB source VCF stays external; cite SpliceAI + Illumina.
     """
-    if not demo and SPLICEAI_CSV.exists():
-        df = pd.read_csv(SPLICEAI_CSV)
+    fp = _extract(SPLICEAI_CSV)
+    if not demo and fp.exists():
+        df = pd.read_csv(fp)
+        release_fp = _extract(DATA_DIR / "spliceai_cftr_2021_v1.3.release.json")
+        if release_fp.exists():
+            import json
+            df["spliceai_release"] = json.loads(release_fp.read_text())["resolved_version"]
+        else:
+            df["spliceai_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
         df["source"] = "REAL"
         return df
     if not demo:
@@ -798,27 +821,48 @@ def load_pangolin(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     github.com/tkzeng/Pangolin) has no precomputed per-gene release and is not in
     dbNSFP, so real scores require RUNNING the model locally (weights bundled with the
     pip package; only the ~215 kb CFTR reference region is needed, no whole-genome
-    download) -- see data/README.md; the Pangolin notebook is pending audit and not
-    published yet. Score 0-1, >= 0.5 high, >= 0.2 moderate; keyed by genomic coordinate.
+    download) — the build cell in tools/08_pangolin.ipynb does exactly that.
+    Score 0-1, >= 0.5 high, >= 0.2 moderate; keyed by genomic coordinate.
 
     REAL if the extract exists (``data/pangolin_cftr.csv``). The build cell's
     default ``SCOPE = "cftr2"`` scores every CFTR2 variant carrying GRCh38
-    coordinates — ~1,892 of 2,097, **SNVs and indels** — and labels the result
+    coordinates — 1,892 of 2,097, **SNVs and indels** — and labels the result
     ``source='REAL'``; ``SCOPE = "curated"`` scores just the 5 classic splice alleles
     and stays ``source='DEMO'``, because that coverage is a teaching subset rather
     than a worklist. The label follows the *scope*, never the model. Rows that could
-    not be scored are kept with an empty score and a ``skip_reason``.
+    not be scored are kept with an empty score and a ``skip_reason``, so coverage
+    stays auditable instead of silently short.
+
+    ⚠ ``pangolin_score`` IS a collapse, unlike SpliceAI's four retained deltas. The
+    model emits two signals per position — the largest splice-usage *increase* (gain)
+    and the largest *decrease* (loss) across the +/-50 bp window — and the build cell
+    stores only ``max(gain, |loss|)``. So a 0.86 tells you the magnitude but not
+    whether a site is being created or destroyed, and the extract cannot answer that
+    without re-running the model. SpliceAI (tools/07) keeps its four deltas and can.
 
     Because Pangolin is run locally it reaches variant classes the precomputed
     masked-SNV SpliceAI release cannot (notably indels) — but note: a
     Pangolin score on a frameshift is a *splice* verdict, and "no splice impact" is
     usually correct and rarely the reason the variant is pathogenic.
 
+    ``pangolin_release`` identifies the *model run*, not a download: the pangolin
+    package version, the SHA-256 of the twelve model-weight files actually loaded, and
+    the reference region the sequences were cut from. That is what a rerun has to match
+    to reproduce a score. Read from data/pangolin_cftr.release.json, written by the
+    build cell.
+
     If the file is absent this falls back to the hand-authored splice-demo pangolin
     values (with a warning; strict=True raises).
     """
-    if not demo and PANGOLIN_CSV.exists():
-        df = pd.read_csv(PANGOLIN_CSV)
+    fp = _extract(PANGOLIN_CSV)
+    if not demo and fp.exists():
+        df = pd.read_csv(fp)
+        release_fp = _extract(DATA_DIR / "pangolin_cftr.release.json")
+        if release_fp.exists():
+            import json
+            df["pangolin_release"] = json.loads(release_fp.read_text())["resolved_version"]
+        else:
+            df["pangolin_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
         return df  # source column set by the build cell (DEMO for curated scope)
     if not demo:
         _missing_extract("Pangolin", PANGOLIN_CSV, strict)

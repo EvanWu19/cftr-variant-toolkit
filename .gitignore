@@ -6,9 +6,11 @@ __pycache__/
 # This repo ships CODE + NOTEBOOKS + manifest, plus a small permissively-licensed
 # publishable/ subset (see below) -- everything else stays local-only.
 # Several datasets are license-restricted / non-commercial and must NOT be
-# redistributed here: SpliceAI CC BY-NC 4.0 · REVEL non-commercial (redistribution
-# unaddressed) · PrimateAI "research use only" (Illumina) · ESM1b (code MIT, score
-# terms "per publication", unconfirmed for redistribution).
+# redistributed here: SpliceAI CC BY-NC 4.0 · Pangolin non-commercial · REVEL
+# non-commercial (redistribution unaddressed) · PrimateAI "research use only"
+# (Illumina) · ESM1b scores CC BY-NC 4.0 (HuggingFace Space; the GitHub code is
+# MIT, which does not cover them) · CFTR2 (terms §12 forbid republishing any
+# portion, and forbid derivative works).
 # Regenerate them locally via each tool's own notebook (fetch/build cell), using
 # your own downloads where a manual step is needed (see data_manifest.json).
 # NB: data/* (not data/) so the provenance guide data/README.md can be re-included below.
@@ -19,7 +21,7 @@ data/*
 !data/README.md
 # Verified-permissive extracts, safe to publish (see data/publishable/LICENSES.md
 # and each dataset's publishable_note in data_manifest.json for the trail):
-#   gnomAD (ODbL+MIT) · AlphaMissense (CC BY 4.0) · EVE (MIT)
+#   gnomAD (ODbL+MIT) · AlphaMissense (CC BY 4.0) · EVE (MIT) · ClinVar (CC0)
 !data/publishable/
 !data/publishable/**
 outputs/
@@ -38,12 +40,10 @@ plan/
 TODO.md
 
 # ── NOT YET AUDITED: kept locally, held back from GitHub ───────────────────
-# tools/01-06 and benchmark/00-01 have been through the audit pass; these have
+# tools/01-08 and benchmark/00-01 have been through the audit pass; these have
 # not. They stay on disk and get re-published individually as each is audited.
 # Listed here as well as untracked so a future `git add -A` can't re-add them.
 tools/00_overview_and_setup.ipynb
-tools/07_spliceai.ipynb
-tools/08_pangolin.ipynb
 tools/09_cadd.ipynb
 tools/10_decircularization_benchmark.ipynb
 predict/

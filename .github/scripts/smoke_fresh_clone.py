@@ -5,9 +5,9 @@ Runs with no locally built data/ — only what git actually ships. Contracts:
 1. The four license-verified extracts in data/publishable/ (gnomAD, AlphaMissense,
    EVE, ClinVar) load as source='REAL' with NO setup step. This is the promise the
    README makes to anyone who clones the repo.
-2. The four that may not be redistributed (ESM1b, REVEL, PrimateAI, CFTR2) — plus
-   the two splice loaders whose notebooks aren't published — fall back to a DEMO
-   table AND warn. A silent fallback is the specific failure this repo prevents.
+2. The six that may not be redistributed (ESM1b, REVEL, PrimateAI, SpliceAI,
+   Pangolin, CFTR2) fall back to a DEMO table AND warn. Their notebooks ship; the
+   data does not. A silent fallback is the specific failure this repo prevents.
 3. strict=True raises instead of degrading, for every fallback loader.
 
 Run locally the same way CI does:  python .github/scripts/smoke_fresh_clone.py

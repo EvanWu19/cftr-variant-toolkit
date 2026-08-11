@@ -1,10 +1,11 @@
 # `data/` — how to fetch and build every extract
 
-> **Four of the eight extracts are committed**, in
+> **Four of the ten extracts are committed**, in
 > [`publishable/`](publishable/LICENSES.md) — gnomAD (ODbL+MIT), AlphaMissense
 > (CC BY 4.0), EVE (MIT) and ClinVar (CC0). Everything else under `data/`, and all of
 > `outputs/`, is gitignored: **ESM1b** (scores CC BY-NC), **REVEL** (non-commercial),
-> **PrimateAI** (Illumina "research use only") and **CFTR2** (terms forbid
+> **PrimateAI** (Illumina "research use only"), **SpliceAI** (CC BY-NC 4.0),
+> **Pangolin** (non-commercial) and **CFTR2** (terms forbid
 > republishing any portion, including derived extracts) are **not redistributed**
 > here — build them locally with the recipes below.
 >
@@ -22,13 +23,12 @@ data" cell near the top, and run it — it either queries a live source directly
 or tells you exactly what to manually download and where to put it before
 re-running. This table is the summary; the notebook cell is the actual recipe.
 
-> **Three rows below are marked *(notebook pending audit)*** — SpliceAI, Pangolin
-> and CADD. Their loaders ship in `toolkit.py` and the datasets are documented
-> here in full, but the notebooks that build them have not yet been through the
-> audit pass the published ones have, so they are not in this repo yet. The
-> `raw_source` / `source` / `license` columns still tell you exactly what to
-> download and under what terms; you just have to write the parse step yourself
-> until those notebooks land.
+> **One row below is marked *(notebook pending audit)*** — CADD. Its loader ships in
+> `toolkit.py` and the dataset is documented here in full, but the notebook that
+> builds it has not yet been through the audit pass the published ones have, so it
+> is not in this repo yet. The `raw_source` / `source` / `license` columns still
+> tell you exactly what to query and under what terms; you just have to write the
+> request step yourself until that notebook lands.
 
 Once you have rebuilt an extract, `python verify_data.py` checks its `sha256`/row
 count against [`../data_manifest.json`](../data_manifest.json) (the machine-readable
@@ -54,8 +54,8 @@ version of everything below).
 | **ESM1b** | `esm1b_cftr.csv` + `esm1b_cftr.release.json` | 28,120 | `tools/04_esm1b.ipynb` | `ALL_hum_isoforms_ESM1b_LLR.zip` → reads only `…/P13569_LLR.csv` from inside it | HuggingFace Space `ntranoslab/esm_variants` | MIT (code); scores per publication |
 | **REVEL** | `revel_cftr_v1.3.csv` + `revel_cftr_v1.3.release.json` | 10,826 raw (all CFTR transcripts) → **9,730** canonical-transcript-only | `tools/05_revel.ipynb` | `revel-v1.3_all_chromosomes.zip` → streams `revel_with_transcript_ids` (6.5 GB member, stops after chr7) | https://sites.google.com/site/revelgenomics | **Non-commercial** (contact authors otherwise) |
 | **PrimateAI** | `primateai_cftr.csv` + `primateai_cftr.release.json` | 9,722 | `tools/06_primateai.ipynb` | `primateAI/PrimateAI_scores_v0.2_hg38.tsv.gz` (~910 MB, streams full genome, not chromosome-sorted) | Illumina BaseSpace https://basespace.illumina.com/s/cPgCSmecvhb4 (native v0.2 release) | **"For research use only"** (Illumina, 2018, stated verbatim in the file header) |
-| **SpliceAI** | `spliceai_cftr_2021_v1.3.csv` | ~2.08M (566,106 SNVs + 1,509,624 indels) | *(notebook pending audit)* | `spliceai_scores.masked.snv.hg38.vcf.gz` + `.tbi` (~28.6 GB) and `spliceai_scores.raw.indel.hg38.vcf.gz` + `.tbi` (~69.3 GB) — the notebook seeks directly to the CFTR region via the `.tbi` index, never reading the full files | Illumina BaseSpace share https://basespace.illumina.com/s/otSPW8hnhaZR (`genome_scores_v1.3`) | **CC BY-NC 4.0** — attribute SpliceAI + Illumina |
-| **Pangolin** | `pangolin_cftr.csv` | ~1,892 scored / 2,097 targets | *(notebook pending audit)* | No data file — `pip install` the model package; the notebook auto-fetches+caches the ~215 kb CFTR reference region from Ensembl on first run (no whole-genome download) and needs `data/cftr2_cftr.csv` built first | github.com/tkzeng/Pangolin (Zeng & Li 2022, PMID 35449021) | non-commercial |
+| **SpliceAI** | `spliceai_cftr_2021_v1.3.csv` + `spliceai_cftr_2021_v1.3.release.json` | 2,075,730 (566,106 SNVs + 1,509,624 indels) | `tools/07_spliceai.ipynb` | `spliceai_scores.masked.snv.hg38.vcf.gz` + `.tbi` (~28.6 GB) and `spliceai_scores.raw.indel.hg38.vcf.gz` + `.tbi` (~69.3 GB) — the notebook seeks directly to the CFTR region via the `.tbi` index, never reading the full files | Illumina BaseSpace share https://basespace.illumina.com/s/otSPW8hnhaZR (`genome_scores_v1.3`) | **CC BY-NC 4.0** — attribute SpliceAI + Illumina |
+| **Pangolin** | `pangolin_cftr.csv` + `pangolin_cftr.release.json` | 1,892 scored / 2,097 targets | `tools/08_pangolin.ipynb` | No data file — `pip install` the model package; the notebook auto-fetches+caches the ~215 kb CFTR reference region from Ensembl on first run (no whole-genome download) and needs `data/cftr2_cftr.csv` built first | github.com/tkzeng/Pangolin (Zeng & Li 2022, PMID 35449021) | non-commercial |
 
 Notes:
 - **EVE** is MIT-licensed (confirmed 2026-08-07) — safe to publish alongside
@@ -84,11 +84,22 @@ Notes:
   see `tools/02_alphamissense.ipynb` for why the genome-coordinate file undercounts.
 - **SpliceAI** is usually built **mixed masked/raw**: Illumina's `masked.indel`
   release is commonly a 0-byte failed download, so indels fall back to `raw.indel`
-  while SNVs come from `masked.snv`. Every row carries `score_type`.
+  while SNVs come from `masked.snv`. Every row carries `score_type`. Version
+  tracking here needs no download date — the VCFs state their own version in their
+  headers (`##fileDate`, `##reference`, and the SpliceAI annotation version inside
+  `##INFO`), and the build cell copies that into the `.release.json` sidecar,
+  exposed as the `spliceai_release` column. All four deltas are kept alongside
+  `spliceai_ds_max`, so the headline collapse is always reversible.
 - **Pangolin**'s default scope (`SCOPE = "cftr2"` in the build cell) scores every
   CFTR2 variant with GRCh38 coordinates and labels the result `source='REAL'`;
   `SCOPE = "curated"` scores just 5 classic alleles and stays `source='DEMO'` —
-  the label follows coverage, never the model.
+  the label follows coverage, never the model. It is the only entry here that is a
+  **model run** rather than a download, so its `.release.json` records what a rerun
+  must match — package version, SHA-256 of the twelve weight files, reference
+  region, torch build and device — written *while the model runs*, because it
+  cannot be reconstructed from an extract afterwards. Unlike SpliceAI, the stored
+  `pangolin_score` is a collapse (`max(gain, |loss|)`) and the direction of the
+  change is not retained; use SpliceAI's deltas when you need the mechanism.
 - **CFTR2 has no historical archive** (checked directly against cftr2.org —
   there is no dated-release listing, unlike ClinVar). The build cell reads
   whatever release date is in the workbook's own header and records it in

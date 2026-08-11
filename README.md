@@ -26,14 +26,15 @@ walkthrough.
 
 ## Data
 
-**Four of the eight per-CFTR extracts ship with the repo** and load with no setup — gnomAD
+**Four of the ten per-CFTR extracts ship with the repo** and load with no setup — gnomAD
 (ODbL+MIT), AlphaMissense (CC BY 4.0), EVE (MIT) and ClinVar (CC0), all in
 [`data/publishable/`](data/publishable/LICENSES.md) with per-file attribution.
 
-Four may **not** be redistributed, so their notebooks show you how to fetch or build them
+Six may **not** be redistributed, so their notebooks show you how to fetch or build them
 yourself: **REVEL** (non-commercial), **PrimateAI** (Illumina "research use only"), **ESM1b**
-(scores are CC BY-NC, incompatible with this repo's MIT licence) and **CFTR2** (its terms forbid
-republishing any portion, including derived extracts). Until you build those, their loaders
+(scores are CC BY-NC, incompatible with this repo's MIT licence), **SpliceAI** (CC BY-NC 4.0),
+**Pangolin** (non-commercial — you run the model rather than download a table) and **CFTR2**
+(its terms forbid republishing any portion, including derived extracts). Until you build those, their loaders
 return a small **DEMO** table and say so — every dataframe carries a `source` column reading
 `REAL` or `DEMO`, and `strict=True` raises instead of falling back. **Never quote a DEMO value
 as a finding.**
@@ -57,13 +58,16 @@ Read in this order — problem, then backbone, then tools, then truth:
    labels it trained on is rigged; §2 works through what that does to REVEL-vs-ClinVar.
 5. **[`benchmark/01_cftr2.ipynb`](benchmark/01_cftr2.ipynb)** — functional truth, and why even
    CFTR2 is only *partly* orthogonal to ClinVar.
+6. **[`tools/07_spliceai.ipynb`](tools/07_spliceai.ipynb)** — the blind spot. Every predictor
+   above is a *missense* predictor; CFTR's deep-intronic and synonymous disease alleles need a
+   splice model instead.
 
 If you only have five minutes, read **`benchmark/00`**.
 
 ```mermaid
 flowchart TB
     SHIP["Already in the repo<br/>gnomAD · AlphaMissense<br/>EVE · ClinVar"]
-    FETCH["You fetch or build<br/>REVEL · PrimateAI<br/>ESM1b · CFTR2"]
+    FETCH["You fetch or build<br/>REVEL · PrimateAI · ESM1b<br/>SpliceAI · Pangolin · CFTR2"]
 
     SHIP -->|"data/publishable/"| TK
     FETCH -->|"notebook fetch/build cell<br/>writes data/"| TK
@@ -102,6 +106,8 @@ annotated version.
 | 04 | [`04_esm1b.ipynb`](tools/04_esm1b.ipynb) | ESM1b — protein language model (scale runs backwards) | ⬇ build it |
 | 05 | [`05_revel.ipynb`](tools/05_revel.ipynb) | REVEL — supervised ensemble, and **circularity** | ⬇ build it |
 | 06 | [`06_primateai.ipynb`](tools/06_primateai.ipynb) | PrimateAI — semi-supervised, near-saturating | ⬇ build it |
+| 07 | [`07_spliceai.ipynb`](tools/07_spliceai.ipynb) | SpliceAI — splice deltas, and what "masked" costs | ⬇ build it |
+| 08 | [`08_pangolin.ipynb`](tools/08_pangolin.ipynb) | Pangolin — a second, independent splice model | ⬇ build it |
 
 ### `benchmark/` — the truth sets tools get graded against
 
@@ -136,7 +142,7 @@ cftr-variant-toolkit/
 ├── verify_data.py        ← checks locally built extracts against data_manifest.json
 ├── data_manifest.json    ← source, version, checksum and licence for every dataset
 ├── docs/architecture.md  ← how a public source becomes a worklist (diagram)
-├── tools/                ← 01–06, committed with outputs
+├── tools/                ← 01–08, committed with outputs
 ├── benchmark/            ← 00–01, committed with outputs
 └── data/                 ← gitignored except:
     ├── README.md         ← fetch/build guide
@@ -174,5 +180,6 @@ example. It is a teaching fixture, not data.
 gnomAD v4 (Karczewski 2020, *Nature*) · ClinVar (Landrum 2018, *NAR*) · CFTR2
 ([cftr2.org](https://cftr2.org)) · AlphaMissense (Cheng 2023, *Science*) · EVE (Frazer 2021,
 *Nature*) · ESM1b (Brandes 2023, *Nat Genet*) · REVEL (Ioannidis 2016, *AJHG*) · PrimateAI
-(Sundaram 2018, *Nat Genet*) · REVEL ACMG calibration (Pejaver 2022, *AJHG*) · ACMG/AMP
+(Sundaram 2018, *Nat Genet*) · SpliceAI (Jaganathan 2019, *Cell*) · Pangolin (Zeng & Li 2022,
+*Genome Biol*) · REVEL ACMG calibration (Pejaver 2022, *AJHG*) · ACMG/AMP
 guidelines (Richards 2015, *Genet Med*).
