@@ -9,7 +9,7 @@ reader per dataset (read data/<file>, tag source, DEMO fallback).
 This file deliberately does NOT contain fetch/build logic anymore. Each
 dataset's fetch-or-build code (how data/<file> gets created in the first
 place — a live API call, a filtered download, or a locally-run model) lives
-in the ONE notebook that owns that tool (tools/00-10, benchmark/00-01), right
+in the ONE notebook that owns that tool (tools/01-06, benchmark/00-01), right
 next to the loader call and the license/provenance note for that source. That
 used to be split across this file's docstrings, seven build_*.py scripts, and
 two fetch_*.py scripts that were referenced everywhere but never committed —
@@ -48,11 +48,11 @@ Real vs demo — and what a fresh clone actually ships
         CFTR2 (~2,097, benchmark/01), EVE (~26,809, tools/03),
         ESM1b (~28,120 saturation, tools/04), REVEL (~10,127 unique coordinates,
         non-commercial, tools/05), PrimateAI (~1,976, dbNSFP ClinVar subset,
-        non-commercial, tools/06), SpliceAI (~566k SNVs; CC BY-NC 4.0, tools/07)
+        non-commercial, tools/06), SpliceAI (~566k SNVs; CC BY-NC 4.0)
       REAL, queried live per-call (no local data needed):
-        CADD v1.7 REST API (tools/09)
+        CADD v1.7 REST API
       DEMO always (hand-curated illustrative values — NOT real predictions):
-        Pangolin (9 curated splice variants only; tools/08 also has a REAL
+        Pangolin (9 curated splice variants only; a local model run also gives a REAL
         model-run path over the full CFTR2 list)
 
     => The six build-locally loaders fall back to a tiny DEMO table when their
@@ -91,11 +91,11 @@ OUT_DIR.mkdir(exist_ok=True)
 
 CFTR2_CSV     = DATA_DIR / "cftr2_cftr.csv"                 # benchmark/01
 EVE_CSV       = DATA_DIR / "eve_cftr_2021-08.csv"            # tools/03
-SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # tools/07
+SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # see data/README.md
 ESM1B_CSV     = DATA_DIR / "esm1b_cftr.csv"                  # tools/04
 REVEL_CSV     = DATA_DIR / "revel_cftr_v1.3.csv"              # tools/05
 PRIMATEAI_CSV = DATA_DIR / "primateai_cftr.csv"               # tools/06
-PANGOLIN_CSV  = DATA_DIR / "pangolin_cftr.csv"                # tools/08
+PANGOLIN_CSV  = DATA_DIR / "pangolin_cftr.csv"                # see data/README.md
 
 # CFTR locus, GRCh38. CFTR is on the PLUS (forward) strand of chromosome 7 (7q31.2),
 # so cDNA/coding alleles read the same as the genomic ref/alt — no complementing.
@@ -129,7 +129,7 @@ HIGHER_IS_WORSE = {"am": True, "eve": True, "revel": True, "primate_ai": True,
                    "esm1b": False}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tool registry — metadata for the de-circularization / benchmark notebook (13)
+# Tool registry — metadata for circularity reasoning and cross-tool benchmarking
 # ─────────────────────────────────────────────────────────────────────────────
 # `learning` is the key field for circularity reasoning:
 #   "unsupervised"  — trained only on sequences/MSAs, NEVER on clinical labels
@@ -165,13 +165,14 @@ TOOL_REGISTRY = {
 }
 
 # Publication / training-freeze year per tool — the anchor for the temporal-leakage
-# reference (tools/10). A variant's clinical label can only leak into a tool if the
+# reference (README.md, Circularity). A variant's clinical label can only leak into a
 # tool's training data postdates the variant's first pathogenic report AND the tool
 # learned from clinical labels. `label_supervised` marks the tools where a post-report
 # training year is a *direct* leakage risk (REVEL); unsupervised/proxy tools carry only
 # INDIRECT risk (benchmarks/frequency calibration), so a date flag there is weaker.
 # NOTE: CADD is NOT trained on clinical labels — it contrasts observed vs simulated
-# variants (proxy). CFTR2 is NOT independent of ClinVar (they cross-cite); see nb12.
+# variants (proxy). CFTR2 is NOT independent of ClinVar (they cross-cite) -- see the
+# Circularity section of README.md and benchmark/01_cftr2.ipynb section 2.
 TOOL_YEAR = {
     "AlphaMissense": 2023, "EVE": 2021, "ESM1b": 2023, "PrimateAI": 2018,
     "REVEL": 2016, "SpliceAI": 2019, "Pangolin": 2022, "CADD": 2021,  # CADD v1.7
@@ -261,7 +262,7 @@ def load_alphamissense() -> pd.DataFrame:
     predictor. It is *unsupervised* w.r.t. clinical labels — trained on protein
     sequences/structures plus weak population-frequency calibration, NOT on
     ClinVar pathogenic/benign labels. That is why it is a good tool to compare
-    *against* ClinVar without circular reasoning (see tools/10).
+    *against* ClinVar without circular reasoning (see README.md, Circularity).
 
     Score `am_pathogenicity` in [0,1]; AlphaMissense's own calibrated cut-points:
         >= 0.564  -> pathogenic
@@ -309,7 +310,7 @@ def load_clinvar() -> pd.DataFrame:
     Conflicting) submitted by labs. It is the de-facto clinical "truth" set —
     but treat it with care: assertions vary in review status (star rating) and,
     crucially, some predictors were TRAINED on ClinVar-lineage labels, so
-    comparing those predictors to ClinVar is partly circular (see tools/10).
+    comparing those predictors to ClinVar is partly circular (README.md, Circularity).
 
     Returns EVERY CFTR/GRCh38 row ClinVar has (~6,100+, not just the ones with
     a simple missense name) — protein_variant is '' for anything that doesn't
@@ -427,7 +428,7 @@ def three_to_one(protein_variant: str) -> str:
     'Tyr161Cys' -> 'Y161C'. Already-1-letter keys (e.g. 'G551D') and anything that
     isn't a simple 3-letter missense are returned unchanged. Use this to join the
     curated DEMO variants (some keyed 3-letter) onto REAL EVE/AlphaMissense/ClinVar,
-    which use 1-letter keys — the "join hygiene" issue notebooks 12/13 discuss.
+    which use 1-letter keys — the "join hygiene" issue the README's key table covers.
     """
     if not isinstance(protein_variant, str):
         return protein_variant
@@ -522,7 +523,7 @@ def load_revel(demo: bool = False, strict: bool = False) -> pd.DataFrame:
 
     ⚠ CIRCULARITY: REVEL's training labels share lineage with ClinVar/HGMD, so
     'REVEL disagrees with ClinVar' can partly reflect label leakage, not
-    independent evidence. Handled in tools/10.
+    independent evidence. See README.md, Circularity.
 
     REAL if the extract exists: genome-wide REVEL v1.3 for CFTR (~9,730 variants)
     from `data/revel_cftr_v1.3.csv`, built by the manual-download build cell in
@@ -621,7 +622,7 @@ def load_cftr2(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     ⚠ It is NOT an independent gold standard: CFTR2 and ClinVar share clinical/
     patient evidence, ClinVar entries cite CFTR2, and CFTR2 informs the ACMG CFTR
     guidance that ClinVar submitters follow — so benchmarking against it is not
-    circularity-free (tools/10).
+    circularity-free (README.md, Circularity).
 
     The full public CFTR2 variant list (~2,097 variants), built from a
     manually-downloaded cftr2.org workbook by the build cell in
@@ -734,8 +735,9 @@ def load_spliceai(demo: bool = False, strict: bool = False) -> pd.DataFrame:
 
     REAL if the extract exists: the precomputed Illumina **SpliceAI v1.3** scores for
     the whole CFTR region (`data/spliceai_cftr_2021_v1.3.csv`, ~2.08 M records), built
-    by the manual-download build cell in tools/07_spliceai.ipynb (a hand-rolled .tbi
-    seek, since pysam doesn't build on Windows). Keyed by genomic coordinate (chrom,pos,ref,alt); columns
+    by a manual-download build cell (a hand-rolled .tbi seek, since pysam doesn't build
+    on Windows) -- see data/README.md; the SpliceAI notebook itself is pending audit and
+    not published yet. Keyed by genomic coordinate (chrom,pos,ref,alt); columns
     DS_AG/DS_AL/DS_DG/DS_DL and spliceai_ds_max (>= 0.5 high, >= 0.2 moderate). Join
     onto observed variants (e.g. gnomAD non-coding) by coordinate to build the real A2
     splice worklist.
@@ -743,7 +745,7 @@ def load_spliceai(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     **SNVs *and* indels** (~566 k + ~1.51 M). The indels matter: no missense predictor
     can score one, so without them every CFTR2 deletion/insertion was invisible to every
     tool — including F508del, which SpliceAI scores DS_max = 0.01 (correct: it is a
-    folding defect, not a splice one). See predict/13.
+    folding defect, not a splice one).
 
     ⚠ The extract is usually **MIXED masked/raw**: Illumina's `masked.indel` release is
     very often a 0-byte failed download, so the builder falls back to `raw.indel` while
@@ -776,10 +778,10 @@ def load_pangolin(demo: bool = False, strict: bool = False) -> pd.DataFrame:
 
     Pangolin (Zeng & Li 2022, Genome Biol 23:103, PMID 35449021,
     github.com/tkzeng/Pangolin) has no precomputed per-gene release and is not in
-    dbNSFP, so real scores require RUNNING the model: the build cell in
-    tools/08_pangolin.ipynb does that locally (weights bundled with the pip
-    package; only the ~215 kb CFTR reference region is needed, no whole-genome
-    download). Score 0-1, >= 0.5 high, >= 0.2 moderate; keyed by genomic coordinate.
+    dbNSFP, so real scores require RUNNING the model locally (weights bundled with the
+    pip package; only the ~215 kb CFTR reference region is needed, no whole-genome
+    download) -- see data/README.md; the Pangolin notebook is pending audit and not
+    published yet. Score 0-1, >= 0.5 high, >= 0.2 moderate; keyed by genomic coordinate.
 
     REAL if the extract exists (``data/pangolin_cftr.csv``). The build cell's
     default ``SCOPE = "cftr2"`` scores every CFTR2 variant carrying GRCh38
@@ -790,7 +792,7 @@ def load_pangolin(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     not be scored are kept with an empty score and a ``skip_reason``.
 
     Because Pangolin is run locally it reaches variant classes the precomputed
-    masked-SNV SpliceAI release cannot (notably indels) — but see predict/13: a
+    masked-SNV SpliceAI release cannot (notably indels) — but note: a
     Pangolin score on a frameshift is a *splice* verdict, and "no splice impact" is
     usually correct and rarely the reason the variant is pathogenic.
 
@@ -812,7 +814,7 @@ def load_pangolin(demo: bool = False, strict: bool = False) -> pd.DataFrame:
 # Known CF splice alleles for the splice-tool worked-example panel — looked up by
 # CFTR2 cDNA name so each notebook can use the AUTHORITATIVE GRCh38 coordinates
 # (not hand-entered ones). Each notebook scores this panel itself, inline, with
-# its own loader -- see e.g. tools/09_cadd.ipynb's worked-example section.
+# its own loader, rather than this module holding scores for them.
 A2_KNOWN_CDNA = ["c.2988+1G>A", "c.2657+5G>A", "c.3718-2477C>T", "c.3140-26A>G", "c.1680-886A>G"]
 
 
@@ -897,5 +899,6 @@ if __name__ == "__main__":
     _try("SpliceAI", load_spliceai)
     _try("Pangolin", load_pangolin)
     _try("splice demo", load_splice_demo)
-    # CADD has no thin reader here -- fetch_cadd() now lives in tools/09_cadd.ipynb
-    # (it needs no local file at all, so there was nothing left to smoke-test here).
+    # CADD has no thin reader here -- it is a live per-call API with no local file,
+    # so there is nothing to smoke-test. Its fetch helper lives in the CADD notebook
+    # (pending audit, not published yet).

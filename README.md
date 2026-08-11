@@ -1,38 +1,126 @@
 # CFTR Variant Toolkit
 
+![Python](https://img.shields.io/badge/python-3.13-blue)
+![Jupyter](https://img.shields.io/badge/Jupyter-notebooks-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Data](https://img.shields.io/badge/data-public%20sources%20only-lightgrey)
+
 A beginner-friendly, **provenance-honest** walkthrough of the computational tools
 used to interpret CFTR variants — the missense pathogenicity predictors, the
-splice predictors, the population-frequency reference, and the clinical/functional
-truth sets. Built as a teaching companion to the project's A1 (missense triage)
-and A2 (splice discordance) analyses.
+population-frequency reference, and the clinical/functional truth sets. Built as a
+teaching companion to the project's A1 (missense triage) and A2 (splice
+discordance) analyses.
 
 Each tool gets its own Jupyter notebook explaining **what it is → what the score
-means → the threshold and why → how to get the real data**. Two closing notebooks
-cover the methodology traps — circular reasoning and training-data leakage (12) —
-and run every tool against the whole CFTR2 list to show what none of them can
-predict (13, in [`predict/`](predict/README.md)).
+means → the threshold and why → how to get the real data**.
+
+## About this project
+
+I'm a healthcare data scientist who has spent nine years working with cystic
+fibrosis clinical and genomic data. I built this because every time I reached for an
+in-silico predictor I had to re-derive the same questions — what does this score
+actually mean, where did the threshold come from, and can I fairly grade this tool
+against ClinVar if it trained on ClinVar? — and I could not find one place that
+answered them honestly for CFTR specifically.
+
+It is a **teaching reference, not a discovery**. The analyses here reproduce
+published CFTR results (see [Related work](#related-work--we-reproduce-not-discover));
+the contribution is the explicit REAL/DEMO provenance labelling and the CFTR-specific
+walkthrough, not new biology.
 
 ---
 
-> ## 📦 Data is NOT included in this repo
-> This repository ships **code + notebooks + a data manifest only**.
-> Every dataset (raw sources *and* the derived per-CFTR score extracts) is
-> license-restricted / non-commercial — SpliceAI CC BY-NC, REVEL non-commercial,
-> **PrimateAI "research use only"**, AlphaMissense CC BY 4.0, EVE MIT,
-> CFTR2 data-use terms — and is **not redistributed here**. Regenerate each extract
-> yourself by running the fetch/build cell in that tool's own notebook (some query a
-> live API directly; others need a file you download by hand — the notebook tells you
-> exactly which); `data_manifest.json` lists the exact source, version, and checksum.
+> ## 📦 Most data is NOT included in this repo
+> This repository ships **code + notebooks + a data manifest**, plus **three
+> verified-permissive extracts** under
+> [`data/publishable/`](data/publishable/LICENSES.md) — gnomAD (ODbL+MIT),
+> AlphaMissense (CC BY 4.0), and EVE (MIT).
+>
+> Everything else is license-restricted and **not redistributed here**: REVEL
+> (non-commercial), **PrimateAI ("research use only")**, SpliceAI (CC BY-NC 4.0),
+> Pangolin (non-commercial), CFTR2 (its own data-use terms), and ESM1b (score
+> redistribution terms unconfirmed). Regenerate those yourself by running the
+> fetch/build cell in that tool's own notebook (some query a live API directly;
+> others need a file you download by hand — the notebook tells you exactly which);
+> `data_manifest.json` lists the exact source, version, checksum, and license.
 > Committed notebooks keep their outputs so you can *read* the results; to *re-run*,
-> fetch the data first.
+> get the data first.
+
+## 🚀 Quick tour
+
+If you are reviewing this repo and have five minutes, read
+**[`tools/05_revel.ipynb`](tools/05_revel.ipynb)** then
+**[`benchmark/01_cftr2.ipynb`](benchmark/01_cftr2.ipynb)** — together they contain the
+one idea the whole toolkit is built around: you cannot fairly grade a predictor
+against labels it was trained on.
+
+A longer path, in order:
+
+1. **[`tools/01_gnomad.ipynb`](tools/01_gnomad.ipynb)** — population frequency is
+   itself a variant classifier, and the best one for ruling variants *out*.
+2. **[`tools/02_alphamissense.ipynb`](tools/02_alphamissense.ipynb)** — one modern
+   predictor end to end: fetch, score, threshold, interpret.
+3. **[`benchmark/01_cftr2.ipynb`](benchmark/01_cftr2.ipynb)** — what "ground truth"
+   means here, and why CFTR2's functional assays are only *partially* orthogonal.
+4. **[`tools/05_revel.ipynb`](tools/05_revel.ipynb)** — the circularity problem, worked
+   through on the tool most affected by it.
+5. **[The count glossary](#count-glossary--every-number-in-one-place)** — every headline
+   number in this README, what it actually counts, and whether it is current.
+
+```mermaid
+flowchart TB
+    subgraph SRC["Public sources (external, licensed)"]
+        S1["gnomAD v4.1.1<br/>AlphaMissense<br/>ClinVar"]
+        S2["EVE · ESM1b<br/>REVEL · PrimateAI<br/>CFTR2 workbook"]
+    end
+
+    S1 -->|"live API / FTP<br/>fetch cell"| D
+    S2 -->|"manual download<br/>+ build cell"| D
+
+    D["data/ — gitignored<br/>(local only)"]
+
+    D -.->|"license verified<br/>permissive"| PUB["data/publishable/<br/>the only data in git<br/>gnomAD · AlphaMissense · EVE"]
+
+    D --> TK["toolkit.py<br/>load_&lt;tool&gt;() readers<br/>thresholds · score → call"]
+
+    TK --> REAL["source = REAL<br/>(extract present)"]
+    TK --> DEMO["source = DEMO<br/>(small curated fallback,<br/>emits a warning)"]
+
+    REAL --> X
+    DEMO --> X
+
+    X["Cross-check vs truth sets<br/>benchmark/00 ClinVar<br/>benchmark/01 CFTR2"]
+    X --> W["Discordance worklists<br/>(A1 missense · A2 splice)"]
+
+    style D stroke-dasharray: 5 5
+    style DEMO stroke-dasharray: 5 5
+```
+
+The dashed boxes are the two things that make this repo unusual: **only extracts
+whose license has been verified as permissive cross into git** (three of them, in
+`data/publishable/`; everything else stays local), and **every returned table is
+labelled REAL or DEMO** so a demo value can never be quoted as a finding. See
+[`docs/architecture.md`](docs/architecture.md) for the annotated version.
 
 ## ⚠️ Read this first: REAL vs DEMO — and what a fresh clone ships
 
 Two things matter most about this toolkit. First, which numbers come from *real*
 data and which come from small *hand-curated demo tables*. Second — and just as
-important — **this repo ships no data at all.** `data/` and `outputs/` are
-gitignored, so "REAL" below means *what a loader returns once you have run its
-notebook's fetch/build cell*, **not** what you get on `git clone`.
+important — **almost no data ships.** `data/` and `outputs/` are gitignored apart
+from the three verified-permissive extracts in `data/publishable/`, so "REAL" below
+means *what a loader returns once you have run its notebook's fetch/build cell*,
+**not** what you get on `git clone`.
+
+> **The published extracts do not wire themselves in.** The loaders read
+> `data/<file>`, but the shipped copies live in `data/publishable/<file>` — so a
+> fresh clone still errors on gnomAD/AlphaMissense/EVE until you either run the
+> fetch cell or copy the file across:
+> ```bash
+> cp data/publishable/gnomad_cftr_all.tsv data/publishable/alphamissense_cftr.tsv \
+>    data/publishable/eve_cftr_2021-08.csv data/publishable/*.release.json data/
+> ```
+> Copying is the offline route; the fetch cell is the reproducible one, because it
+> re-records the source's current version stamp.
 
 | Source | REAL once you… | Coverage (once built) | Fresh clone gives you | Notebook |
 |---|---|---|---|---|
@@ -44,43 +132,33 @@ notebook's fetch/build cell*, **not** what you get on `git clone`.
 | **ESM1b** | run the build cell (manual download) | ~28,120 CFTR (saturation) | ⚠️ DEMO fallback | tools/04 |
 | **REVEL** | run the build cell (manual download) | ~10,127 CFTR (coord-keyed; non-commercial) | ⚠️ DEMO fallback | tools/05 |
 | **PrimateAI** | run the build cell (manual download) | ~9,722 CFTR (native Illumina release; research use only) | ⚠️ DEMO fallback | tools/06 |
-| **SpliceAI** | run the build cell (manual download) | ~2.08M CFTR records — 566k SNVs **+ 1.51M indels** (Illumina v1.3, CC BY-NC) | ⚠️ DEMO fallback | tools/07 |
-| **Pangolin** | run the build cell (runs the model) | ~1,892 CFTR2 variants (SNVs **and** indels) | ⚠️ DEMO fallback | tools/08 |
-| CADD | — (live API, no local file) | per-variant | ✅ live (cache it) | tools/09 |
+
+`toolkit.py` also ships readers for **SpliceAI**, **Pangolin** and **CADD**. Their
+notebooks are [not yet published](#not-yet-published) — the loaders work, the
+teaching material is still in audit.
 
 There are **three** states, not two:
 
 - **Live-fetched REAL** (gnomAD, AlphaMissense, ClinVar) — the notebook's fetch cell
   queries a public API/bulk file directly; the loader **raises `FileNotFoundError`**
   until you've run it once. No demo fallback.
-- **Manual-download REAL** (CFTR2, EVE, ESM1b, REVEL, PrimateAI, SpliceAI, Pangolin) —
-  the notebook's build cell tells you exactly what to download and where to put it
-  in `data/`, then parses it; until then the loader **falls back to a small DEMO
-  table** (`source='DEMO'`) *with a warning*. Pass `strict=True` to raise instead of
-  degrading silently.
+- **Manual-download REAL** (CFTR2, EVE, ESM1b, REVEL, PrimateAI) — the notebook's
+  build cell tells you exactly what to download and where to put it in `data/`, then
+  parses it; until then the loader **falls back to a small DEMO table**
+  (`source='DEMO'`) *with a warning*. Pass `strict=True` to raise instead of degrading
+  silently.
 - **Live** — CADD is a live API (cache the responses for reproducibility).
-
-**Pangolin is the odd one out:** it has no precomputed release to download, so
-its build cell **runs the model locally** (weights ship in the pip package; only the
-~215 kb CFTR region is needed, auto-fetched once, ~4 min on a GPU). Its default scope
-covers every CFTR2 variant with GRCh38 coordinates → `source='REAL'`; the curated scope
-scores just the 5 classic splice alleles and stays `source='DEMO'`. **The label follows
-the coverage, not the model.**
-
-**Both splice tools score indels**, which no missense predictor can do. SpliceAI's come
-from Illumina's precomputed `raw.indel` release; since `masked.indel` is very often a
-0-byte failed download, the built extract is usually **mixed masked/raw** and every row
-carries a `score_type` column. Masked and raw agree on 95.8% of CFTR SNVs, but 113 cross
-the 0.5 cut — don't compare across the seam (tools/07).
 
 CFTR2 and ClinVar are real *truth sets* (databases), not predictors. Every DataFrame
 a loader returns carries a `source` column (`REAL` / `DEMO`) so the two are never
 confused. **Never quote a DEMO value as a finding.**
 
 > ### 📍 Current status in *this* checkout
-> This repo ships **code + notebooks + manifest only** — no data.
+> This repo ships **code + notebooks + manifest**, plus the three permissive
+> extracts in `data/publishable/` (which the loaders do not read until you copy
+> them into `data/` — see the note above).
 > On a clean clone: the three live-fetched loaders raise `FileNotFoundError`; the
-> seven manual-download loaders return `source='DEMO'` (with a warning) until you
+> manual-download loaders return `source='DEMO'` (with a warning) until you
 > run their notebook's build cell. See **[`data/README.md`](data/README.md)** for
 > exactly how to fetch and build each extract, and
 > **[`data_manifest.json`](data_manifest.json)** for the source URL, version,
@@ -90,7 +168,7 @@ confused. **Never quote a DEMO value as a finding.**
 
 ## 🔰 Beginner primer (read before the numbers)
 
-New to CFTR or variant prediction? These four notes unlock the rest of the README.
+New to CFTR or variant prediction? These notes unlock the rest of the README.
 
 **Variant vocabulary.** A gene is read in three-letter codons that spell out a
 protein. A **missense** variant changes one amino acid; a **synonymous** variant
@@ -112,18 +190,31 @@ several keys, and most "biological disagreements" are really key mismatches:
 | Legacy CFTR name | `2789+5G>A` | CFTR2 history, older literature | no formula — kept as a lookup column |
 | Genomic coordinate | `7-117587799-G-A` (`chrom,pos,ref,alt`) | REVEL, SpliceAI, CADD, gnomAD `variant_id` | **CFTR is on the plus strand**, so the genomic `ref/alt` is the *same* as the coding change (coding `c.1624G>T` shows as `G`/`T`) — don't complement; the real risk is joining on the wrong build or the wrong key |
 
-REVEL and SpliceAI are keyed by **coordinate** (no protein position), so they join by
+REVEL is keyed by **coordinate** (no protein position), so it joins by
 `chrom,pos,ref,alt` — mind the genome build. AlphaMissense/EVE/ESM1b join by
 **protein_variant**. `hgvsp_to_short()` and `three_to_one()` in `toolkit.py` are the
 helpers that normalise between them.
 
-**Why "the predictor disagrees with ClinVar" isn't always evidence (circularity).**
+### Circularity
+
+**Why "the predictor disagrees with ClinVar" isn't always evidence.**
 Testing a predictor against labels it *trained on* is like grading a student with the
 exact questions they studied — a high score proves memorisation, not understanding.
 REVEL was trained on curated pathogenic/benign labels that share lineage with ClinVar,
 so "REVEL vs ClinVar" is partly **circular**. AlphaMissense/EVE/ESM1b never saw
 clinical labels, so comparing *them* to ClinVar is closer to independent evidence.
-tools/10 quantifies this.
+
+The same caution applies to the truth sets themselves: **CFTR2 is not independent of
+ClinVar**. Its functional-assay axis is genuinely orthogonal, but its patient/clinical
+component overlaps ClinVar's evidence, ClinVar entries cite CFTR2, and CFTR2 informs
+the ACMG CFTR guidance ClinVar submitters follow. Use ClinVar for breadth and CFTR2's
+*functional* measurements as **partial** orthogonal evidence — never as a
+circularity-free gold standard.
+
+A related trap is **temporal leakage**: a variant reported in 1989 (F508del, say) is
+in the training data of every label-supervised tool built since, so "the tool got it
+right" tells you nothing. A proper benchmark applies a training-cutoff hold-out. The
+A1 worklist below did **not** do this — see [Known limitations](#known-limitations-by-design--honesty).
 
 > ### ⚠️ A predictor score is not a clinical diagnosis
 > Every threshold in this README (AlphaMissense ≥ 0.564, SpliceAI ≥ 0.5, …) is a
@@ -134,7 +225,7 @@ tools/10 quantifies this.
 
 ---
 
-## 📋 The one-page summary (A1 / A2 / B1)
+## 📋 The one-page summary (A1 / A2)
 
 This is the combined one-page summary these notebooks document — reproduced here
 so a reader lands on the headline results and their source. Generated 2026-07-01
@@ -150,6 +241,13 @@ as part of a CFTR variant-interpretation collaboration.
 > and the **[count glossary](#count-glossary--every-number-in-one-place)** maps each
 > historical number to its corrected real value.
 
+> ### 📓 A note on sources
+> Several numbers below were computed by notebooks that are **written but not yet
+> published in this repo** — they are still going through the audit pass that
+> `tools/01–06` and `benchmark/00–01` have already been through. Those are marked
+> *(pending audit)* rather than linked, because pointing you at a file you cannot
+> open would be worse than saying so. See [Not yet published](#not-yet-published).
+
 ### Dashboard *(historical / demo — see banner above)*
 
 | Block | Metric | Value |
@@ -160,8 +258,6 @@ as part of a CFTR variant-interpretation collaboration.
 | **A2 · Splice** | Splice variants scored | **1,094** |
 | **A2 · High impact** | HIGH SpliceAI (+1 MODERATE) | **7** |
 | **A2 · VUS worklist** | VUS with high splice risk | **2** |
-| **B1 · Pipeline** | Nextflow processes succeeded | **6/6** |
-| **B1 · Modules** | Containerised, CI-green | **5** |
 | **Total worklist** | Variants for expert curation | **415** |
 
 ### A1 — Missense VUS triage / predictor discordance
@@ -184,18 +280,19 @@ candidates; 0 reverse discordance).
 | **Val520Phe** | c.1558G>T | VUS | Uncertain | 0.778 | 0.718 | −6.00 | 0.755 | 0.731 | **3/5** |
 
 > **Update (real EVE):** with EVE now real, **S912L scores benign (0.085)** and drops
-> out, so the honest ≥3/5 count is **3, not 4** (archived integration notebook). The `4` above is the
-> original webpage's demo-based figure, kept here as the reproduced summary.
+> out, so the honest ≥3/5 count is **3, not 4** *(archived integration notebook, not
+> published)*. The `4` above is the original webpage's demo-based figure, kept here as
+> the reproduced summary. You can verify the S912L score yourself in
+> [`tools/03_eve.ipynb`](tools/03_eve.ipynb).
 
-> With the **real CFTR2** loader (benchmark/01) now available, you can compute a fully
-> real upgrade set: **256** variants that CFTR2 calls *"No interpretation available"*
-> or *"Varying clinical consequence"* while AlphaMissense scores ≥ 0.564.
+> With the **real CFTR2** loader ([`benchmark/01`](benchmark/01_cftr2.ipynb)) now
+> available, you can compute a fully real upgrade set: **256** variants that CFTR2 calls
+> *"No interpretation available"* or *"Varying clinical consequence"* while AlphaMissense
+> scores ≥ 0.564.
 
 Source: the archived integration notebook (`archive/`, gitignored) wrote this worklist as
 `outputs/A1_upgrade_worklist_REAL.csv` (real AlphaMissense-vs-ClinVar upgrades). **That
-file no longer exists** — `outputs/` is gitignored and is now regenerated by
-[`predict/`](predict/README.md), which does not yet emit the A1 worklist. Re-run the
-archived notebook if you need it, or treat the numbers above as historical.
+file no longer exists** — `outputs/` is gitignored. Treat the numbers above as historical.
 
 ### A2 — Splice-variant discordance
 
@@ -222,91 +319,69 @@ should recover HIGH here: 2988+1G>A, 2789+5G>A, 2657+3A>G, 3849+10kb C>T,
 
 Source: the archived integration notebook (`archive/`, gitignored) wrote this as
 `outputs/A2_splice_DEMO.csv`, all rows `source=DEMO`. **That file no longer exists** —
-`outputs/` is gitignored and is now regenerated by [`predict/`](predict/README.md).
-For the real-data version of this question, tools/07 scores the observed non-coding
-variants and predict/13 benchmarks SpliceAI against CFTR2 (~0.97 sensitivity in its
-own domain).
-
-### B1 — cftr-varqc reproducible pipeline
-
-An nf-core-style Nextflow workflow packaging the A1 + A2 logic into portable,
-containerised, CI-tested infrastructure: takes a CFTR VCF, normalises to HGVS
-(MANE NM_000492.4), joins precomputed effect scores, cross-checks CFTR2 + ClinVar,
-and emits a MultiQC-style HTML report plus the discordance worklists. Last run:
-**6/6 processes succeeded, 0 failed**; 5 local modules; CI stub-run green on every push.
-
-```
-INPUT VCF
-   ├─ HGVS_NORMALIZE       bcftools norm + SnpEff HGVS (MANE NM_000492.4)
-   ├─ SCORE_JOIN_MISSENSE  join AlphaMissense/EVE/ESM1b/REVEL/PrimateAI
-   │      └─ CLINVAR_CHECK  → missense discordance worklist   (A1)
-   ├─ SPLICE_SCORE         join SpliceAI/Pangolin + CADD-Splice PHRED
-   │      └─ CLINVAR_CHECK  → splice discordance worklist      (A2)
-   └─ MULTIQC_REPORT       aggregate summaries → HTML + TSV
-```
-
-*The `cftr-varqc` pipeline itself is not included in this repository — this
-toolkit is the notebook companion. B1 is summarised here for context only.*
+`outputs/` is gitignored. The real-data version of this question lives in the splice
+notebooks, *pending audit*.
 
 ---
 
 ## What the headline numbers in the summary report actually mean
 
 > ### ✅ These are the CURRENT real-data rerun numbers
-> Computed by tools/10 (missense) and tools/07 (splice) *with the real
-> extracts built*. Where they differ from the historical block above, **these are the
-> ones to cite.** (Reproduce them yourself only after building the extracts — see
+> Computed *with the real extracts built*. Where they differ from the historical block
+> above, **these are the ones to cite.** Numbers marked *(pending audit)* come from
+> notebooks not yet published here — see [Not yet published](#not-yet-published).
+> (Reproduce them yourself only after building the extracts — see
 > [`data/README.md`](data/README.md).)
 
 The earlier one-page summary reported the historical `2496 / 413 / 403 / 10 / 4 / 1094`.
 Here is what each one actually is, and its corrected real value:
 
-- **2,496 → 2,466.** The real gnomAD v4.1.1 CFTR missense backbone is **2,466** variants;
-  the historical **2,496** added ~30 hand-curated famous alleles (G551D, …). Of the
-  2,466, **2,430** have an AlphaMissense score and **2,437** have ≥1 real predictor.
+- **2,496 → 2,466.** The real gnomAD v4.1.1 CFTR missense backbone is **2,466** variants
+  ([`tools/01`](tools/01_gnomad.ipynb)); the historical **2,496** added ~30 hand-curated
+  famous alleles (G551D, …). Of the 2,466, **2,430** have an AlphaMissense score and
+  **2,437** have ≥1 real predictor.
 - **413 = 403 + 10 → 402 = 392 + 10.** This is a **two-source comparison —
   AlphaMissense vs ClinVar** (AM pathogenic while ClinVar is uncertain = *upgrade*, or
   AM benign while ClinVar is pathogenic = *downgrade*), **not** a five-tool vote. The
-  live rerun over real data gives **392 upgrade + 10 downgrade = 402** (archived integration notebook);
-  the historical `403/10/413` was the webpage's figure and drifts by a few with the
-  ClinVar release used.
+  live rerun over real data gives **392 upgrade + 10 downgrade = 402** *(archived
+  integration notebook, not published)*; the historical `403/10/413` was the webpage's
+  figure and drifts by a few with the ClinVar release used.
 - **4 → 473.** "VUS but ≥3/5 tools pathogenic" was a demo-only figure (≥3/5 over ~13
   demo variants; it becomes **3** once real EVE drops S912L). With the real missense
   extracts built, the consensus runs over the **2,466 observed** variants and the real
-  A1 Priority-1 worklist is **473** (archived integration notebook). (PrimateAI covers only ~53% of
-  sites, so some variants are voted by 4 tools not 5; REVEL/PrimateAI carry
-  circularity — tools/10.)
+  A1 Priority-1 worklist is **473** *(archived integration notebook, not published)*.
+  (PrimateAI covers only ~53% of sites, so some variants are voted by 4 tools not 5;
+  REVEL/PrimateAI carry circularity — see [Circularity](#circularity).)
 - **1,094 → 4,535 / 173 HIGH.** "1,094 splice variants scored" originally meant **9
-  demo variants** (the other ~1,085 unscored). With the real SpliceAI extract built
-  (tools/07), **4,535 of the 4,717** observed gnomAD non-coding CFTR variants get a
-  real SpliceAI score, of which **173 are HIGH-impact** (≥0.5) and 86 MODERATE — the
-  real A2 worklist. (Was 4,260 / 164 before the indel scores were included.)
-  (Pangolin now scores it for real too — see
-  tools/08; the archived integration notebook's A2 section still used the 9
-  curated DEMO rows, so build the real join via tools/07.)
+  demo variants** (the other ~1,085 unscored). With the real SpliceAI extract built,
+  **4,535 of the 4,717** observed gnomAD non-coding CFTR variants get a real SpliceAI
+  score, of which **173 are HIGH-impact** (≥0.5) and 86 MODERATE — the real A2 worklist.
+  (Was 4,260 / 164 before the indel scores were included.) *(SpliceAI and Pangolin
+  notebooks pending audit.)*
 
 ### Count glossary — every number in one place
 
 Every headline number that appears in this README, what it actually counts, and
-whether it is current or historical. "Source" points at where it is computed.
+whether it is current or historical. "Source" points at where it is computed;
+*pending audit* means the computing notebook is written but not yet published here.
 
 | Number | What it counts | Status | Source |
 |---|---|---|---|
 | **2,466** | gnomAD v4.1.1 CFTR **missense** variants (no PASS/AC filter) — the real backbone | ✅ current | tools/01; `gnomad_all.rows` (`gnomad_class=='missense'`) |
 | 2,177 | subset of those that are PASS in gnomAD's `joint_filters` (stricter view; live-computed in tools/01, not the same cut as the browser's default) | ✅ current (alt filter) | manifest note |
-| 2,430 / 2,437 | of the 2,466: have an AlphaMissense score / have ≥1 real predictor | ✅ current | archived integration nb |
-| **2,496** | 2,466 + ~30 hand-curated famous alleles injected by the original script | 🕰️ historical | archived integration nb |
+| 2,430 / 2,437 | of the 2,466: have an AlphaMissense score / have ≥1 real predictor | ✅ current | archived integration nb (not published) |
+| **2,496** | 2,466 + ~30 hand-curated famous alleles injected by the original script | 🕰️ historical | archived integration nb (not published) |
 | **413** = 403 + 10 | AlphaMissense-vs-ClinVar discordance on the **original webpage** | 🕰️ historical | webpage |
-| **402** = 392 + 10 | same comparison on the **current real rerun** (upgrade + downgrade) | ✅ current | archived integration nb |
-| **473** | observed VUS with ≥3/5 tools pathogenic — the real A1 Priority-1 worklist | ✅ current | archived integration nb |
-| 4 / 3 | historical Priority-1 (≥3/5 over ~13 demo variants; 3 after real EVE drops S912L) | 🕰️ historical/demo | webpage / archived integration nb |
-| 256 | CFTR2 "no interpretation" or "varying consequence" **and** AM ≥ 0.564 (fully-real upgrade set) | ✅ current | benchmark/01, tools/10 |
+| **402** = 392 + 10 | same comparison on the **current real rerun** (upgrade + downgrade) | ✅ current | archived integration nb (not published) |
+| **473** | observed VUS with ≥3/5 tools pathogenic — the real A1 Priority-1 worklist | ✅ current | archived integration nb (not published) |
+| 4 / 3 | historical Priority-1 (≥3/5 over ~13 demo variants; 3 after real EVE drops S912L) | 🕰️ historical/demo | webpage / archived nb |
+| 256 | CFTR2 "no interpretation" or "varying consequence" **and** AM ≥ 0.564 (fully-real upgrade set) | ✅ current | benchmark/01 + circularity reference (pending audit) |
 | **1,085** | older stated gnomAD non-coding count | 🕰️ stale | old table |
 | **4,717** | gnomAD v4.1.1 CFTR **non-coding** variants (intron + synonymous + UTR + splice-region) | ✅ current | tools/01; `gnomad_all.rows` (`gnomad_class=='noncoding'`) |
 | **1,094** | historical "splice variants scored" (really 9 DEMO scored + ~1,085 unscored) | 🕰️ historical/demo | webpage |
-| **4,535 / 4,717** | non-coding variants that get a **real SpliceAI** score (was 4,260 pre-indels) | ✅ current | tools/07 |
-| **173 / 86** | of those 4,535: real SpliceAI HIGH (≥0.5) / MODERATE (0.2–0.5) | ✅ current | tools/07 |
-| **2.08M** (2,075,730) | all precomputed SpliceAI CFTR records in the built extract: 566,106 SNVs (masked) + 1,509,624 indels (raw) | ✅ current | tools/07; `spliceai.rows` |
+| **4,535 / 4,717** | non-coding variants that get a **real SpliceAI** score (was 4,260 pre-indels) | ✅ current | SpliceAI notebook (pending audit) |
+| **173 / 86** | of those 4,535: real SpliceAI HIGH (≥0.5) / MODERATE (0.2–0.5) | ✅ current | SpliceAI notebook (pending audit) |
+| **2.08M** (2,075,730) | all precomputed SpliceAI CFTR records in the built extract: 566,106 SNVs (masked) + 1,509,624 indels (raw) | ✅ current | SpliceAI notebook (pending audit) |
 | 9 | hand-curated DEMO splice variants (the A2 teaching table) | 🟡 DEMO | `toolkit.py` |
 
 Coverage counts for the built extracts (saturation unless noted): EVE ~26,809 ·
@@ -314,61 +389,51 @@ ESM1b ~28,120 · REVEL 10,826 raw (9,730 canonical-transcript-only, verified sat
 tools/05) · PrimateAI ~9,722 (native Illumina release, near-saturating — tools/06) ·
 CFTR2 ~2,097.
 
-See tools/10 for why "predictor disagrees with ClinVar" is only evidence
-when the predictor never trained on ClinVar-lineage labels (REVEL did; the
-unsupervised tools did not).
-
 ---
 
 ## Notebooks
 
-### `tools/` — one predictor (or setup/reference) per notebook
+### `tools/` — one predictor per notebook
 
 | # | File | Covers | Data on a fresh clone |
 |---|---|---|---|
-| 00 | `tools/00_overview_and_setup.ipynb` | setup + the provenance map | — |
-| 01 | `tools/01_gnomad.ipynb` | gnomAD — population frequency as a variant classifier in its own right | REAL if cached, else error |
-| 02 | `tools/02_alphamissense.ipynb` | AlphaMissense — genome-wide missense predictor | REAL if cached, else error |
-| 03 | `tools/03_eve.ipynb` | EVE — unsupervised evolutionary model | REAL if built, else DEMO |
-| 04 | `tools/04_esm1b.ipynb` | ESM1b — protein language model (backwards scale) | REAL if built, else DEMO |
-| 05 | `tools/05_revel.ipynb` | REVEL — supervised ensemble + **circularity** | REAL if built, else DEMO |
-| 06 | `tools/06_primateai.ipynb` | PrimateAI — semi-supervised (near-saturating) | REAL if built, else DEMO |
-| 07 | `tools/07_spliceai.ipynb` | SpliceAI — splice deltas (all CFTR SNVs) | REAL if built, else DEMO |
-| 08 | `tools/08_pangolin.ipynb` | Pangolin — independent splice model, run locally over all of CFTR2 | REAL if run, else DEMO |
-| 09 | `tools/09_cadd.ipynb` | CADD — live deleteriousness score | REAL (live API) |
-| 10 | `tools/10_decircularization_benchmark.ipynb` | **circularity & temporal-leakage reference** (which tool can you trust vs which truth set) | — |
+| 01 | [`tools/01_gnomad.ipynb`](tools/01_gnomad.ipynb) | gnomAD — population frequency as a variant classifier in its own right | REAL if cached, else error |
+| 02 | [`tools/02_alphamissense.ipynb`](tools/02_alphamissense.ipynb) | AlphaMissense — genome-wide missense predictor | REAL if cached, else error |
+| 03 | [`tools/03_eve.ipynb`](tools/03_eve.ipynb) | EVE — unsupervised evolutionary model | REAL if built, else DEMO |
+| 04 | [`tools/04_esm1b.ipynb`](tools/04_esm1b.ipynb) | ESM1b — protein language model (backwards scale) | REAL if built, else DEMO |
+| 05 | [`tools/05_revel.ipynb`](tools/05_revel.ipynb) | REVEL — supervised ensemble + **circularity** | REAL if built, else DEMO |
+| 06 | [`tools/06_primateai.ipynb`](tools/06_primateai.ipynb) | PrimateAI — semi-supervised (near-saturating) | REAL if built, else DEMO |
 
 ### `benchmark/` — the truth sets tools get graded against
 
 | # | File | Covers | Data on a fresh clone |
 |---|---|---|---|
-| 00 | `benchmark/00_clinvar.ipynb` | ClinVar — crowd-sourced clinical truth set | REAL if cached, else error |
-| 01 | `benchmark/01_cftr2.ipynb` | CFTR2 — disease-specific functional truth set | REAL if built, else DEMO |
+| 00 | [`benchmark/00_clinvar.ipynb`](benchmark/00_clinvar.ipynb) | ClinVar — crowd-sourced clinical truth set | REAL if cached, else error |
+| 01 | [`benchmark/01_cftr2.ipynb`](benchmark/01_cftr2.ipynb) | CFTR2 — disease-specific functional truth set | REAL if built, else DEMO |
 
-### `predict/` — the cross-tool benchmark
+**Recommended order:** `tools/01` → `tools/02` → `benchmark/00–01` → `tools/03–06`.
+Read `tools/01` first: it is the only notebook that is about *observed* variants rather
+than predicted ones, and it sets up the variant backbone every other notebook joins onto.
 
-| # | File | Covers | Data on a fresh clone |
-|---|---|---|---|
-| 13 | `predict/13_cftr2_benchmark.ipynb` | **all tools vs the whole CFTR2 list** — coverage in three parts + per-tool performance | needs the built extracts |
+## Not yet published
 
-One predictor per `tools/` notebook (02–09); `benchmark/00–01` are the truth sets;
-`tools/10` is the circularity / temporal-leakage reference; `predict/13` is the
-cross-tool benchmark. Recommended order: `tools/01` → `benchmark/00–01` → `tools/10` →
-`predict/13`. If you read only one, read **tools/10** (why a predictor "disagreeing
-with ClinVar" is only sometimes evidence); if you read two, add **predict/13** (what
-none of these tools can do).
+Five notebooks are written and working locally but are **held back pending the same
+audit pass** `tools/01–06` and `benchmark/00–01` have been through. They are listed
+here rather than quietly omitted, because several numbers in this README came from
+them:
 
-> **`predict/` — the cross-tool pipeline.** [`predict/`](predict/README.md) runs every
-> tool against the full CFTR2 list and writes its results to `outputs/`. Only **205** of
-> the 2,097 variants get no score at all — but **951 (45%)** have no tool that addresses
-> *why* they break CFTR, and frequency-weighted that is **~80% of CF alleles**. F508del is
-> the lesson: SpliceAI scores it 0.01 and Pangolin 0.05, both correctly saying it is not a
-> splice variant, which tells you nothing about the most common CF allele in the world.
->
-> **Archived work:** the old A1/A2 *integration* notebook (which reproduced the
-> discordance worklists) has moved to `archive/` (kept locally, **not** shipped). The
-> current-real A1/A2 numbers below (402 / 473 / 256) were computed by that archived
-> notebook; porting those two worklists into `predict/` is the remaining step.
+| Notebook | Covers | Why it matters to the numbers above |
+|---|---|---|
+| `tools/00` | setup + the provenance map | orientation only |
+| `tools/07` | **SpliceAI** — splice deltas across all CFTR SNVs and indels | source of 4,535 / 173 / 86 / 2.08M |
+| `tools/08` | **Pangolin** — independent splice model, run locally | the A2 cross-check |
+| `tools/09` | **CADD** — live deleteriousness API | the A2 PHRED column |
+| `tools/10` | **circularity & temporal-leakage reference** | the argument summarised under [Circularity](#circularity) |
+| `predict/13` | all tools vs the whole CFTR2 list — coverage + per-tool performance | the coverage/performance framing |
+
+`toolkit.py` still ships `load_spliceai()`, `load_pangolin()` and the CADD helpers, so
+the library covers these tools even though the teaching notebooks don't yet. Each will
+be published as it clears audit.
 
 ---
 
@@ -381,15 +446,16 @@ none of these tools can do).
 | **ESM1b** | missense | LLR ≤ −7.5 | No (protein LM) | Brandes 2023, PMID 37563329 |
 | **PrimateAI** | missense | ≥ 0.803 | Proxy (primate/common) | Sundaram 2018, PMID 30038395 |
 | **REVEL** | missense | ≥ 0.75 (graded) | **Yes (HGMD+ESP)** ⚠ | Ioannidis 2016, PMID 27666373 |
-| **SpliceAI** | splice | DS_max ≥ 0.5 | No (GTEx junctions) | Jaganathan 2019, PMID 30661751 |
-| **Pangolin** | splice | ≥ 0.5 | No | Zeng & Li 2022, PMID 35449021 |
-| **CADD** | general | PHRED ≥ 15 | Proxy | Rentzsch 2021, PMID 33618777 |
+| **SpliceAI** * | splice | DS_max ≥ 0.5 | No (GTEx junctions) | Jaganathan 2019, PMID 30661751 |
+| **Pangolin** * | splice | ≥ 0.5 | No | Zeng & Li 2022, PMID 35449021 |
+| **CADD** * | general | PHRED ≥ 15 | Proxy | Rentzsch 2021, PMID 33618777 |
+
+\* loader ships in `toolkit.py`; teaching notebook [pending audit](#not-yet-published).
 
 ⚠ REVEL is the one to distrust when benchmarking against ClinVar (it may have
 trained on the same labels). Note ESM1b runs the *opposite* direction — more
 negative = more damaging. All thresholds are single-cut simplifications; the ACMG
-calibration (Pejaver 2022, PMID 36413997) uses *graded* thresholds — see
-tools/05, predict/13.
+calibration (Pejaver 2022, PMID 36413997) uses *graded* thresholds — see tools/05.
 
 ---
 
@@ -401,11 +467,11 @@ pip install -r requirements.txt
 jupyter lab           # or: jupyter notebook
 ```
 
-Open `tools/00_overview_and_setup.ipynb` first.
+Open [`tools/01_gnomad.ipynb`](tools/01_gnomad.ipynb) first.
 
 ### The REAL loaders need data you fetch/build yourself
 
-**Nothing under `data/` or `outputs/` ships in the repo** — see
+**Apart from `data/publishable/`, nothing under `data/` or `outputs/` ships** — see
 **[`data/README.md`](data/README.md)** for how to fetch and build every extract.
 Concretely:
 
@@ -413,12 +479,9 @@ Concretely:
   `tools/01_gnomad.ipynb`, `tools/02_alphamissense.ipynb`, and
   `benchmark/00_clinvar.ipynb` queries a public API/bulk file directly and writes
   `data/<tool>.tsv`. Missing → `FileNotFoundError` until you run it.
-- **Manual-download** (CFTR2, EVE, ESM1b, REVEL, PrimateAI, SpliceAI, Pangolin) — the
-  build cell in that tool's own notebook tells you exactly what to download and
-  where, then reads `data/<tool>.csv`. Missing → **DEMO fallback** (warning), or
-  `strict=True` to raise.
-- **No data needed** — the DEMO tables and the live CADD API (`tools/09_cadd.ipynb`)
-  work on a bare clone.
+- **Manual-download** (CFTR2, EVE, ESM1b, REVEL, PrimateAI) — the build cell in that
+  tool's own notebook tells you exactly what to download and where, then reads
+  `data/<tool>.csv`. Missing → **DEMO fallback** (warning), or `strict=True` to raise.
 
 ### Run all notebooks headless
 
@@ -443,31 +506,30 @@ cftr_variant_toolkit/
 │                            Each dataset's own fetch/build code lives in its notebook, not here.
 ├── verify_data.py         ← checks locally-built extracts vs data_manifest.json
 ├── data_manifest.json     ← source/version/checksum/license for every dataset
+├── docs/architecture.md   ← how a source becomes a worklist (diagram)
 ├── dev/_nbutil.py         ← author-side helper used to build the notebooks
-├── tools/                 ← 00–10 (see table above) — committed WITH outputs
+├── tools/                 ← 01–06 (see table above) — committed WITH outputs
 ├── benchmark/             ← 00–01: the truth sets (ClinVar, CFTR2) — committed WITH outputs
-├── predict/               ← 13: all tools vs the whole CFTR2 list → outputs/
-├── data/                  ← gitignored; only data/README.md ships (build guide)
-├── outputs/               ← gitignored; regenerated by predict/ (nothing else reads it)
-└── archive/               ← gitignored; superseded integration notebook
+└── data/                  ← gitignored, EXCEPT:
+    ├── README.md          ← the fetch/build guide
+    └── publishable/       ← the 3 verified-permissive extracts + LICENSES.md
 ```
 
-> Only the plain files and `tools/` / `benchmark/` are committed. `data/` (except its
-> `README.md`) and `outputs/` are gitignored — a clone must rebuild
-> them (see [`data/README.md`](data/README.md)).
+> Everything else under `data/`, and all of `outputs/`, is gitignored — a clone must
+> rebuild those (see [`data/README.md`](data/README.md)).
 
 ## Known limitations (by design / honesty)
 
-- **On a fresh clone, every predictor is DEMO or errors** — because no data ships
-  (see the REAL/DEMO table). The seven manual-download loaders (CFTR2, EVE, ESM1b, REVEL,
-  PrimateAI, SpliceAI, Pangolin) become REAL once you run their notebook's build cell;
-  gnomAD, AlphaMissense, and ClinVar need their notebook's fetch cell. Pangolin has no
-  precomputed release, so its build cell runs the real model locally over the whole
-  CFTR2 list (a curated-scope option keeps the 5-allele teaching run at DEMO). Build
-  the extracts before treating any output as a finding, and check the `source` column.
+- **On a fresh clone, every predictor is DEMO or errors** — the loaders read
+  `data/`, and the three shipped extracts sit in `data/publishable/`, so nothing is
+  wired up until you copy them across or run the fetch cell (see the REAL/DEMO
+  table). The manual-download loaders (CFTR2, EVE, ESM1b, REVEL, PrimateAI) become
+  REAL once you run their notebook's build cell; gnomAD, AlphaMissense, and ClinVar
+  need their notebook's fetch cell. Build the extracts before treating any output as
+  a finding, and check the `source` column.
 - The 9 curated splice variants have hand-entered genomic coordinates; **several do
-  not match the GRCh38 reference** (tools/07 shows why they don't reproduce against
-  real SpliceAI). One VUS (`c.2657+120C>T`) is an explicitly *synthetic* teaching example.
+  not match the GRCh38 reference**, so they do not reproduce against real SpliceAI.
+  One VUS (`c.2657+120C>T`) is an explicitly *synthetic* teaching example.
 - **Reproducibility caveats:** ClinVar updates ~weekly and the *default* fetch
   (`CLINVAR_RELEASE = "latest"`) tracks that rolling file — every fetch records
   its resolved version into `clinvar_release`, and `benchmark/00_clinvar.ipynb`
@@ -475,12 +537,11 @@ cftr_variant_toolkit/
   an exact historical release. CADD is a **live API** (cache responses, or a
   rerun can change/fail on network behaviour rather than biology). Both are
   noted in `data_manifest.json`.
-- The A1 discordance list did **not** apply a training-cutoff temporal hold-out;
-  **tools/10** (the circularity / temporal-leakage reference) explains how, and flags
-  which tool×variant pairs risk leakage (e.g. F508del, reported 1989, vs any
-  label-supervised tool trained after). Note CFTR2 is **not** an independent truth set —
-  it shares clinical evidence with ClinVar and they cross-cite, so it is only *partially*
-  orthogonal (its functional-assay axis), not circularity-free.
+- The A1 discordance list did **not** apply a training-cutoff temporal hold-out, so
+  variants reported long before a tool was trained (e.g. F508del, reported 1989) may
+  be scored correctly through memorisation rather than understanding. The dedicated
+  circularity / temporal-leakage notebook that works this through is
+  [pending audit](#not-yet-published); [Circularity](#circularity) above summarises it.
 
 ## Related work — we *reproduce*, not discover
 

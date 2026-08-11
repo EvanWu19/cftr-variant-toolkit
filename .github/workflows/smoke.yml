@@ -1,0 +1,61 @@
+name: smoke
+
+# Guards the README's "works on a fresh clone" claim. Deliberately data-free:
+# no dataset is downloaded, no notebook is executed. It asserts that a bare
+# clone behaves exactly as documented — DEMO fallbacks warn, live-fetch loaders
+# raise, and strict=True never degrades silently.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fresh-clone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Only verified-permissive data may ship
+        run: |
+          # The repo deliberately ships three permissive extracts under
+          # data/publishable/ (gnomAD ODbL+MIT, AlphaMissense CC BY 4.0, EVE MIT).
+          # Everything else under data/ must stay local-only. This guards the
+          # licensing boundary, not a blanket "no data" rule.
+          stray=$(git ls-files data/ \
+            | grep -v '^data/README.md$' \
+            | grep -v '^data/publishable/' || true)
+          if [ -n "$stray" ]; then
+            echo "::error::data outside data/publishable/ is tracked:"; echo "$stray"; exit 1
+          fi
+
+          # The non-commercial / research-use-only sources must never appear at all.
+          forbidden=$(git ls-files data/ \
+            | grep -iE 'revel|primateai|spliceai|pangolin|cftr2_cftr|dbnsfp|esm1b' || true)
+          if [ -n "$forbidden" ]; then
+            echo "::error::non-redistributable dataset is tracked:"; echo "$forbidden"; exit 1
+          fi
+
+          if git ls-files outputs/ | grep -q .; then
+            echo "::error::outputs/ is tracked in git"; exit 1
+          fi
+
+          # Anything shipped must be documented in the attribution file.
+          for f in $(git ls-files data/publishable/ | grep -vE 'LICENSES\.md|\.release\.json$'); do
+            base=$(basename "$f")
+            grep -q -- "$base" data/publishable/LICENSES.md \
+              || { echo "::error::$base ships but is not attributed in LICENSES.md"; exit 1; }
+          done
+          echo "OK: only verified-permissive, attributed extracts are tracked"
+
+      - name: Import and exercise the loaders on a bare clone
+        run: python .github/scripts/smoke_fresh_clone.py

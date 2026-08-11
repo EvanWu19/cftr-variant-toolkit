@@ -10,9 +10,8 @@ authors:
   - given-names: Runyu
     family-names: Wu
     email: evan891022@gmail.com
-    # Update name/affiliation/ORCID as needed.
-repository-code: "https://github.com/EvanWu19/cftr-phewas-toolkit"
-url: "https://github.com/EvanWu19/cftr-phewas-toolkit"
+repository-code: "https://github.com/EvanWu19/cftr-variant-toolkit"
+url: "https://github.com/EvanWu19/cftr-variant-toolkit"
 license: MIT
 keywords:
   - CFTR
@@ -20,5 +19,7 @@ keywords:
   - variant interpretation
   - in silico prediction
   - AlphaMissense
-  - SpliceAI
+  - ClinVar
+  - CFTR2
+  - clinical genomics
   - bioinformatics

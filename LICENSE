@@ -28,5 +28,6 @@ documentation in this repository. It does NOT grant any rights to third-party
 datasets or model outputs that the build_*.py / fetch_* scripts download or
 compute (AlphaMissense, gnomAD, ClinVar, CFTR2, EVE, ESM1b, REVEL, PrimateAI /
 dbNSFP, SpliceAI, Pangolin, CADD). Each of those carries its own license — see
-data_manifest.json, DATA_LICENSING_CONCERNS.md, and PUBLISHING.md. A permissive
-license on this repository cannot and does not re-license third-party data.
+the per-dataset `license` field in data_manifest.json, and the license column in
+data/README.md. A permissive license on this repository cannot and does not
+re-license third-party data.

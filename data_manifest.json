@@ -1,6 +1,6 @@
 {
   "_comment": "Provenance + reproducibility manifest for the toolkit's REAL data sources. IMPORTANT: by default nothing here ships in the repo -- all of data/ and outputs/ are gitignored. 'local_file' is where an extract lives AFTER you build it locally (see data/README.md); it is NOT committed. Every dataset's fetch/build code lives in the notebook named in 'built_by' -- there is no separate build_*.py or fetch_*.py script anymore, and no separate _tmp_fetch/ cache; everything lands in data/. derived_extract entries carry a sha256/rows so verify_data.py can detect drift in your local build; live_fetch entries are not hash-checked because their source can legitimately change between runs (ClinVar updates ~weekly).",
-  "_publishable_comment": "'publishable' was added 2026-07-31 after re-verifying licenses (see PUBLISHING.md and DATA_LICENSING_CONCERNS.md). Values: 'yes' = permissive, safe to commit/host with attribution; 'noncommercial' = may be hosted by a strictly non-commercial tool with NC notice, but NOT committed to the public repo; 'no' = do not redistribute (ND, or redistribution unaddressed); 'confirm' = terms unresolved, treat as 'no' until checked.",
+  "_publishable_comment": "'publishable' was added 2026-07-31 after re-verifying each dataset's redistribution terms; the per-dataset 'license' and 'publishable_note' fields below carry the reasoning. Values: 'yes' = permissive, safe to commit/host with attribution; 'noncommercial' = may be hosted by a strictly non-commercial tool with NC notice, but NOT committed to the public repo; 'no' = do not redistribute (ND, or redistribution unaddressed); 'confirm' = terms unresolved, treat as 'no' until checked.",
   "ships_in_repo": false,
   "schema_version": 2,
   "license_review_date": "2026-07-31",
@@ -120,12 +120,12 @@
       "rows": 9722
     },
     "spliceai": {
-      "notebook": "tools/07",
+      "notebook": "tools/07 (pending audit, not published)",
       "kind": "derived_extract",
       "local_file": "data/spliceai_cftr_2021_v1.3.csv",
       "sha256": "7d169ef93009bc4f3114ee3f95b9bf7798497c15b9571e2a142b0a0600c3d955",
       "rows": 2075730,
-      "built_by": "tools/07_spliceai.ipynb (build cell; manual VCF download, .tbi seek)",
+      "built_by": "tools/07_spliceai.ipynb (build cell; manual VCF download, .tbi seek) — notebook pending audit, not published",
       "raw_source": "spliceai_scores.masked.snv.hg38.vcf.gz (~28.6 GB) + spliceai_scores.raw.indel.hg38.vcf.gz (~69.3 GB) \u2014 both external, not committed",
       "source": "Illumina BaseSpace share https://basespace.illumina.com/s/otSPW8hnhaZR ('Predicting splicing from primary sequence' / genome_scores_v1.3)",
       "version": "SpliceAI precomputed v1.3, GRCh38; Gencode v24, distance 50bp. MIXED score_type: 566,106 SNVs from the MASKED file + 1,509,624 indels from the RAW file (masked.indel is commonly a 0-byte failed download). Rows carry score_type/variant_class. Masked vs raw agree exactly on 95.8% of CFTR SNVs (mean |diff| 0.0019) but 113 SNVs cross the 0.5 HIGH cut \u2014 do not compare a masked score against a raw one.",
@@ -135,10 +135,10 @@
       "publishable_note": "CC BY-NC: a strictly non-commercial tool may serve it with attribution + NC notice; do NOT commit to the public repo. Alternative: query the Broad SpliceAI lookup API live instead of hosting the extract."
     },
     "pangolin": {
-      "notebook": "tools/08",
+      "notebook": "tools/08 (pending audit, not published)",
       "kind": "model_run",
       "local_file": "data/pangolin_cftr.csv",
-      "built_by": "tools/08_pangolin.ipynb (build cell; runs the model locally)",
+      "built_by": "tools/08_pangolin.ipynb (build cell; runs the model locally) — notebook pending audit, not published",
       "raw_source": "Pangolin model weights bundled in the pip package + data/cftr_region_grch38.fa (~215 kb CFTR region, Ensembl GRCh38); no whole-genome download",
       "source": "https://github.com/tkzeng/Pangolin (Zeng & Li 2022)",
       "version": "Pangolin (Zeng & Li 2022, Genome Biol 23:103, PMID 35449021)",
@@ -148,7 +148,7 @@
       "note": "Model output you generated yourself (better footing than redistributing a licensor's table), but the model license is non-commercial \u2014 a strictly non-commercial tool may host it with citation; do NOT commit to the public repo. REAL model output. Default scope (SCOPE = \"cftr2\" in the build cell) runs the model over every CFTR2 variant with GRCh38 coords: ~1,892 of 2,097 scored, SNVs AND indels, source=REAL. SCOPE = \"curated\" scores only the 5 classic CF splice alleles and stays source=DEMO \u2014 the label follows COVERAGE, not the model. Validated against real SpliceAI (c.2988+1G>A: Pangolin 0.86 vs SpliceAI 0.99); across 311 non-coding variants both score, r=0.976. Unscorable rows are kept with a skip_reason (204 lack CFTR2 coords; 1 event >100 bp)."
     },
     "cadd": {
-      "notebook": "tools/09",
+      "notebook": "tools/09 (pending audit, not published)",
       "kind": "live_api",
       "source": "https://cadd.gs.washington.edu/api/v1.0/GRCh38-v1.7/",
       "version": "CADD v1.7 (GRCh38); Rentzsch et al. 2021, PMID 33618777",
