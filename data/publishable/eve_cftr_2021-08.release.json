@@ -1,0 +1,6 @@
+{
+  "zip_member": "variant_files/CFTR_HUMAN.csv",
+  "zip_member_packaged_at": "2021-07-08T21:00:44",
+  "release_label": "2021-08",
+  "note": "packaged_at is the zip's own embedded per-file timestamp (zipfile.ZipInfo.date_time), not a download date -- it is EVE's own record of when this exact CSV was built."
+}
