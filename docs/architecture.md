@@ -2,8 +2,8 @@
 
 This is the annotated version of the diagram in the [README](../README.md#-quick-tour).
 It describes what actually happens when you run a notebook in this repo, and where the
-two guardrails sit: **no data crosses into git**, and **every table is labelled REAL or
-DEMO**.
+two guardrails sit: **only license-verified data crosses into git**, and **every table
+is labelled REAL or DEMO**.
 
 ```mermaid
 flowchart TB
@@ -16,7 +16,10 @@ flowchart TB
     S1 -->|"fetch cell<br/>queries directly"| D
     S2 -->|"you download by hand,<br/>build cell parses"| D
 
-    D["<b>2 · data/</b><br/>derived per-CFTR extracts<br/>+ .release.json version sidecars<br/><i>gitignored — never committed</i>"]
+    D["<b>2 · data/</b><br/>derived per-CFTR extracts<br/>+ .release.json version sidecars<br/><i>gitignored, except data/publishable/</i>"]
+
+    D -.->|"license verified permissive:<br/>gnomAD · AlphaMissense · EVE"| PUB
+    PUB["<b>data/publishable/</b><br/>the only data in git<br/>attributed in LICENSES.md"]
 
     D --> TK["<b>3 · toolkit.py</b><br/>thin load_&lt;tool&gt;() readers<br/>tool registry · thresholds<br/>call_from_score() · key normalisers"]
 
@@ -45,9 +48,13 @@ non-commercial, PrimateAI is "research use only", CFTR2 has its own data-use ter
 None of them are redistributed here. `data_manifest.json` records the exact URL,
 version, checksum, and license for each.
 
-**2 · `data/` is a boundary, not a cache.** It is gitignored precisely so the licensing
-question never arises: there is no path by which a licensed extract reaches the public
-repo. The `.release.json` sidecars exist because most of these sources have no version
+**2 · `data/` is a boundary, not a cache.** It is gitignored by default so the licensing
+question is answered before anything is published, not after. The one exception is
+`data/publishable/`: three extracts whose terms were checked and found permissive
+(gnomAD ODbL+MIT, AlphaMissense CC BY 4.0, EVE MIT), each attributed in
+[`LICENSES.md`](../data/publishable/LICENSES.md) and enforced by CI. Note the loaders
+read `data/<file>` directly, so the published copies are an offline convenience you copy
+across — not a wired-up default. The `.release.json` sidecars exist because most sources have no version
 string in their URL — the fetch cell records an HTTP `Last-Modified`/`ETag`, or reads a
 zip member's embedded timestamp, so a silent upstream score change becomes visible as a
 changed release column rather than a mystery diff.

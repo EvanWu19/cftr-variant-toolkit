@@ -30,17 +30,21 @@ walkthrough, not new biology.
 
 ---
 
-> ## 📦 Data is NOT included in this repo
-> This repository ships **code + notebooks + a data manifest only**.
-> Every dataset (raw sources *and* the derived per-CFTR score extracts) is
-> license-restricted / non-commercial — REVEL non-commercial, **PrimateAI "research
-> use only"**, AlphaMissense CC BY 4.0, EVE MIT, CFTR2 data-use terms — and is **not
-> redistributed here**. Regenerate each extract yourself by running the fetch/build
-> cell in that tool's own notebook (some query a live API directly; others need a file
-> you download by hand — the notebook tells you exactly which); `data_manifest.json`
-> lists the exact source, version, and checksum.
+> ## 📦 Most data is NOT included in this repo
+> This repository ships **code + notebooks + a data manifest**, plus **three
+> verified-permissive extracts** under
+> [`data/publishable/`](data/publishable/LICENSES.md) — gnomAD (ODbL+MIT),
+> AlphaMissense (CC BY 4.0), and EVE (MIT).
+>
+> Everything else is license-restricted and **not redistributed here**: REVEL
+> (non-commercial), **PrimateAI ("research use only")**, SpliceAI (CC BY-NC 4.0),
+> Pangolin (non-commercial), CFTR2 (its own data-use terms), and ESM1b (score
+> redistribution terms unconfirmed). Regenerate those yourself by running the
+> fetch/build cell in that tool's own notebook (some query a live API directly;
+> others need a file you download by hand — the notebook tells you exactly which);
+> `data_manifest.json` lists the exact source, version, checksum, and license.
 > Committed notebooks keep their outputs so you can *read* the results; to *re-run*,
-> fetch the data first.
+> get the data first.
 
 ## 🚀 Quick tour
 
@@ -73,7 +77,9 @@ flowchart TB
     S1 -->|"live API / FTP<br/>fetch cell"| D
     S2 -->|"manual download<br/>+ build cell"| D
 
-    D["data/ — gitignored<br/>never committed"]
+    D["data/ — gitignored<br/>(local only)"]
+
+    D -.->|"license verified<br/>permissive"| PUB["data/publishable/<br/>the only data in git<br/>gnomAD · AlphaMissense · EVE"]
 
     D --> TK["toolkit.py<br/>load_&lt;tool&gt;() readers<br/>thresholds · score → call"]
 
@@ -90,18 +96,31 @@ flowchart TB
     style DEMO stroke-dasharray: 5 5
 ```
 
-The dashed boxes are the two things that make this repo unusual: **no data ever
-crosses into git**, and **every returned table is labelled REAL or DEMO** so a demo
-value can never be quoted as a finding. See
+The dashed boxes are the two things that make this repo unusual: **only extracts
+whose license has been verified as permissive cross into git** (three of them, in
+`data/publishable/`; everything else stays local), and **every returned table is
+labelled REAL or DEMO** so a demo value can never be quoted as a finding. See
 [`docs/architecture.md`](docs/architecture.md) for the annotated version.
 
 ## ⚠️ Read this first: REAL vs DEMO — and what a fresh clone ships
 
 Two things matter most about this toolkit. First, which numbers come from *real*
 data and which come from small *hand-curated demo tables*. Second — and just as
-important — **this repo ships no data at all.** `data/` and `outputs/` are
-gitignored, so "REAL" below means *what a loader returns once you have run its
-notebook's fetch/build cell*, **not** what you get on `git clone`.
+important — **almost no data ships.** `data/` and `outputs/` are gitignored apart
+from the three verified-permissive extracts in `data/publishable/`, so "REAL" below
+means *what a loader returns once you have run its notebook's fetch/build cell*,
+**not** what you get on `git clone`.
+
+> **The published extracts do not wire themselves in.** The loaders read
+> `data/<file>`, but the shipped copies live in `data/publishable/<file>` — so a
+> fresh clone still errors on gnomAD/AlphaMissense/EVE until you either run the
+> fetch cell or copy the file across:
+> ```bash
+> cp data/publishable/gnomad_cftr_all.tsv data/publishable/alphamissense_cftr.tsv \
+>    data/publishable/eve_cftr_2021-08.csv data/publishable/*.release.json data/
+> ```
+> Copying is the offline route; the fetch cell is the reproducible one, because it
+> re-records the source's current version stamp.
 
 | Source | REAL once you… | Coverage (once built) | Fresh clone gives you | Notebook |
 |---|---|---|---|---|
@@ -135,7 +154,9 @@ a loader returns carries a `source` column (`REAL` / `DEMO`) so the two are neve
 confused. **Never quote a DEMO value as a finding.**
 
 > ### 📍 Current status in *this* checkout
-> This repo ships **code + notebooks + manifest only** — no data.
+> This repo ships **code + notebooks + manifest**, plus the three permissive
+> extracts in `data/publishable/` (which the loaders do not read until you copy
+> them into `data/` — see the note above).
 > On a clean clone: the three live-fetched loaders raise `FileNotFoundError`; the
 > manual-download loaders return `source='DEMO'` (with a warning) until you
 > run their notebook's build cell. See **[`data/README.md`](data/README.md)** for
@@ -450,7 +471,7 @@ Open [`tools/01_gnomad.ipynb`](tools/01_gnomad.ipynb) first.
 
 ### The REAL loaders need data you fetch/build yourself
 
-**Nothing under `data/` or `outputs/` ships in the repo** — see
+**Apart from `data/publishable/`, nothing under `data/` or `outputs/` ships** — see
 **[`data/README.md`](data/README.md)** for how to fetch and build every extract.
 Concretely:
 
@@ -489,20 +510,23 @@ cftr_variant_toolkit/
 ├── dev/_nbutil.py         ← author-side helper used to build the notebooks
 ├── tools/                 ← 01–06 (see table above) — committed WITH outputs
 ├── benchmark/             ← 00–01: the truth sets (ClinVar, CFTR2) — committed WITH outputs
-└── data/                  ← gitignored; only data/README.md ships (build guide)
+└── data/                  ← gitignored, EXCEPT:
+    ├── README.md          ← the fetch/build guide
+    └── publishable/       ← the 3 verified-permissive extracts + LICENSES.md
 ```
 
-> Only the plain files and `tools/` / `benchmark/` are committed. `data/` (except its
-> `README.md`) and `outputs/` are gitignored — a clone must rebuild
-> them (see [`data/README.md`](data/README.md)).
+> Everything else under `data/`, and all of `outputs/`, is gitignored — a clone must
+> rebuild those (see [`data/README.md`](data/README.md)).
 
 ## Known limitations (by design / honesty)
 
-- **On a fresh clone, every predictor is DEMO or errors** — because no data ships
-  (see the REAL/DEMO table). The manual-download loaders (CFTR2, EVE, ESM1b, REVEL,
-  PrimateAI) become REAL once you run their notebook's build cell; gnomAD,
-  AlphaMissense, and ClinVar need their notebook's fetch cell. Build the extracts
-  before treating any output as a finding, and check the `source` column.
+- **On a fresh clone, every predictor is DEMO or errors** — the loaders read
+  `data/`, and the three shipped extracts sit in `data/publishable/`, so nothing is
+  wired up until you copy them across or run the fetch cell (see the REAL/DEMO
+  table). The manual-download loaders (CFTR2, EVE, ESM1b, REVEL, PrimateAI) become
+  REAL once you run their notebook's build cell; gnomAD, AlphaMissense, and ClinVar
+  need their notebook's fetch cell. Build the extracts before treating any output as
+  a finding, and check the `source` column.
 - The 9 curated splice variants have hand-entered genomic coordinates; **several do
   not match the GRCh38 reference**, so they do not reproduce against real SpliceAI.
   One VUS (`c.2657+120C>T`) is an explicitly *synthetic* teaching example.

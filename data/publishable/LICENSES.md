@@ -2,9 +2,9 @@
 
 Everything in this folder is a small, CFTR-only extract derived from a larger public
 source, verified against that source's own current terms before being committed here.
-See [`../../data_manifest.json`](../../data_manifest.json) and
-[`../../DATA_LICENSING_CONCERNS.md`](../../DATA_LICENSING_CONCERNS.md) for the full
-verification trail. **Not legal advice** — these are engineering-level attributions,
+See [`../../data_manifest.json`](../../data_manifest.json) — each dataset's
+`license`, `publishable`, and `publishable_note` fields carry the verification
+trail. **Not legal advice** — these are engineering-level attributions,
 re-verify against each source's current terms before relying on them.
 
 ---

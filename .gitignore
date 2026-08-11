@@ -18,7 +18,7 @@ __pycache__/
 data/*
 !data/README.md
 # Verified-permissive extracts, safe to publish (see data/publishable/LICENSES.md
-# and DATA_LICENSING_CONCERNS.md for the per-file verification trail):
+# and each dataset's publishable_note in data_manifest.json for the trail):
 #   gnomAD (ODbL+MIT) · AlphaMissense (CC BY 4.0) · EVE (MIT)
 !data/publishable/
 !data/publishable/**

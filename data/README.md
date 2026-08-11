@@ -1,9 +1,14 @@
 # `data/` — how to fetch and build every extract
 
-> **Nothing in this folder is committed.** `data/` and `outputs/` are gitignored
-> (see the repo `.gitignore`), so a fresh clone contains **only this README** — no
-> CSVs, no parquet, no raw archives. Every dataset below is license-restricted or
-> non-commercial and is **not redistributed** here.
+> **Almost nothing in this folder is committed.** `data/` and `outputs/` are
+> gitignored (see the repo `.gitignore`) apart from this README and
+> [`publishable/`](publishable/LICENSES.md) — three extracts whose licenses were
+> verified permissive (gnomAD ODbL+MIT, AlphaMissense CC BY 4.0, EVE MIT). No other
+> CSV, parquet, or raw archive ships; the rest are license-restricted or
+> non-commercial and are **not redistributed** here.
+>
+> Note the loaders read `data/<file>`, **not** `data/publishable/<file>` — copy the
+> three across (or run their fetch cell) before they resolve as REAL.
 
 **There is one data folder now, not two.** Every dataset — whether it's pulled
 live from an API, filtered from a bulk download, or produced by running a model
