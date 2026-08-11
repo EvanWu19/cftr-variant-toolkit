@@ -1,0 +1,7 @@
+{
+  "requested_release": "latest",
+  "resolved_version": "Tue, 04 Aug 2026 19:58:34 GMT",
+  "fetched_at_utc": "2026-08-05T12:00:40+00:00",
+  "row_count": 6165,
+  "source_url": "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz"
+}
