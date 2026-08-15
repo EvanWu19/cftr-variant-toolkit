@@ -160,6 +160,23 @@
       "version": "CADD v1.7 (GRCh38), released 2024-01-05 — Schubach et al. 2024, Nucleic Acids Research 52(D1):D1143, PMID 38183205, doi 10.1093/nar/gkad989. CORRECTED 2026-08-15: this entry previously cited Rentzsch et al. 2021 (PMID 33618777) for v1.7, but that paper is CADD-Splice = v1.6; the v1.7 release notes open by describing what changed 'Since the CADD v1.6 release in 2021'. v1.7 added ESM-1v protein language model scores, a regulatory CNN over open-chromatin regions, and Zoonomia (241-mammal) conservation. There is no file to hash: the version pinned in the URL is the only anchor, and tools/09 returns it alongside every score.",
       "publishable": "live",
       "note": "Queried live per-variant; cache responses to make reproducible. Do NOT cache-and-republish (CADD has separate academic/commercial terms). NOT trained on clinical labels — the v1.7 release notes describe contrasting >14M human-lineage-derived variants (proxy-neutral) against a size-matched simulated set (proxy-deleterious) — so DIRECT ClinVar circularity is low. But CADD is a META-MODEL and this toolkit is inside it: the v1.7 feature table lists 'Masked SpliceAI' acceptor/donor gain/loss scores (the same masked flavour tools/07 builds), MMSplice features, and ESM-1v scores (a sibling of tools/04's ESM1b). So CADD agreeing with SpliceAI or ESM1b is partly the same evidence counted twice — do not treat them as independent votes in a benchmark. At 2024 it is also the most recently released tool covered here, giving it the widest window in which a variant could already have been well-characterised."
+    },
+    "cftr2_history": {
+      "notebook": "benchmark/01",
+      "kind": "derived_extract",
+      "local_file": "data/cftr2_history.csv",
+      "sha256": "b53d4d07c89066bd188ca5ed8649a3e92cd8004d28f33315a1333fc8db6d974f",
+      "rows": 2102,
+      "companion_files": ["data/cftr2_history_long.csv", "data/cftr2_history.release.json"],
+      "built_by": "benchmark/01_cftr2.ipynb section 3, via benchmark/cftr2_history.py",
+      "raw_source": "12 archived CFTR2 workbooks, 2016-08-08 to 2026-01-30 (external, not committed)",
+      "source": "https://cftr2.org variant-list history tab",
+      "version": "Chained from the 12 archived releases listed in data/cftr2_history.release.json (2016-08-08 → 2026-01-30); each release date is read from that workbook's own header, and the chain is asserted contiguous. Left-censored at 2015-08-13, the label on the oldest workbook's previous-version column. NOT reproducible from a fresh clone: cftr2.org publishes no dated-release archive, so the older workbooks cannot be obtained retrospectively.",
+      "retrieval_date": "2026-08-15",
+      "license": "CFTR2 Legal Terms & Conditions (cftr2.org/terms_of_use), §12 Intellectual Property: 'No portion of the Content may be reprinted, republished, modified, or distributed in any form without the express written permission of CFTR2, CFF, and Johns Hopkins', and separately prohibits creating derivative works; download permitted 'solely for your own non-commercial use'. Footer: 'clinical, research, and educational uses only. All other rights reserved.' Cite CFTR2. NB the expert-panel CALLS are separately available in ClinVar under CC0 — use that route if you need shareable CFTR2-derived classifications.",
+      "publishable": "no",
+      "publishable_note": "DO NOT SHIP. Same CFTR2 Legal Terms & Conditions §12 basis as the cftr2 entry: this is a derivative work computed from twelve releases of the Content. The notebook prints aggregates and derived columns only — no legacy names, cDNA names, determinations, allele counts or coordinates reach committed outputs. The CI gate in .github/workflows/smoke.yml blocks any tracked data/ path matching 'cftr2'.",
+      "note": "Dates when CFTR2 adopted a CF-causing call, NOT when a variant was discovered. cftr2_date_basis distinguishes observed / left_censored / never_cf_causing and is a column rather than being folded into the date. Per-release trajectories are kept in the companion cftr2_history_long.csv."
     }
   }
 }

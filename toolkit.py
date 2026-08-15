@@ -118,6 +118,7 @@ def _extract(path: Path) -> Path:
     return shipped if shipped.exists() else path
 
 CFTR2_CSV     = DATA_DIR / "cftr2_cftr.csv"                 # benchmark/01
+CFTR2_HIST_CSV = DATA_DIR / "cftr2_history.csv"              # benchmark/01
 EVE_CSV       = DATA_DIR / "eve_cftr_2021-08.csv"            # tools/03
 SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # tools/07
 ESM1B_CSV     = DATA_DIR / "esm1b_cftr.csv"                  # tools/04
@@ -697,6 +698,56 @@ def load_cftr2_demo() -> pd.DataFrame:
     REAL list; kept for the early teaching cells that predate the real loader."""
     d = _demo_frame()
     return d[["protein_variant", "cftr2_class", "source"]]
+
+
+def load_cftr2_history(strict: bool = False) -> pd.DataFrame:
+    """When CFTR2 first called each variant CF-causing, from its own release series (REAL).
+
+    The temporal-leakage answer for the CFTR2 truth set. CFTR2's workbook has no
+    per-variant date field, but every release carries a *previous version* determination
+    column naming the preceding release, so twelve archived workbooks chain into a
+    per-variant trajectory. Built by the history section of benchmark/01_cftr2.ipynb via
+    benchmark/cftr2_history.py -> data/cftr2_history.csv. Columns:
+      cdna_name        CFTR2's cDNA name at the most recent release ('' if the variant
+                       has since been dropped from the list)
+      variant_key      CFTR2's legacy name -- the join key, because it is the only name
+                       stable across all twelve releases. CFTR2 Content: use it to join,
+                       never print it (see data_manifest.json).
+      cftr2_first_cf_causing   first release whose determination reads CF-causing
+      cftr2_date_basis  how to read that date, NOT collapsed into it:
+                        'observed'         a real date from the release series
+                        'left_censored'    already CF-causing at the 2015-08-13 floor,
+                                           so the value is a BOUND, not a date
+                        'never_cf_causing' CFTR2 has never called it CF-causing
+      cftr2_first_seen  first release the variant appears at all, any class
+      cftr2_class_changes       how many times the determination changed
+      cftr2_ever_withdrawn      was CF-causing at one release and not at a later one
+                                (true for a round trip too -- pair it with
+                                cftr2_current_determination to tell those apart)
+      cftr2_current_determination  normalised class at the most recent release
+      cftr2_in_current_release, cftr2_history_release, source
+
+    ⚠ **Left-censored at 2015-08-13.** CFTR2's archive starts there, so F508del and 237
+    other long-known alleles carry that date as a bound. It is not when they were
+    discovered — F508del was reported in 1989. Every tool in TOOL_YEAR postdates the
+    floor (REVEL 2016 is earliest), so training-cutoff hold-outs are still constructible;
+    the censored bucket is simply "known before all of them".
+
+    ⚠ **Not reproducible from a fresh clone.** cftr2.org publishes no historical archive,
+    so this needs twelve workbooks you already hold. Missing extract -> warns and returns
+    empty (strict=True raises). Please cite CFTR2 (cftr2.org) if you use it.
+    """
+    if CFTR2_HIST_CSV.exists():
+        df = pd.read_csv(CFTR2_HIST_CSV, dtype={"cdna_name": "string", "variant_key": "string"})
+        df["cdna_name"] = df["cdna_name"].fillna("")
+        df["source"] = "REAL"
+        return df
+    _missing_extract("CFTR2 history", CFTR2_HIST_CSV, strict)
+    return pd.DataFrame(columns=[
+        "cdna_name", "variant_key", "cftr2_first_cf_causing", "cftr2_date_basis",
+        "cftr2_first_seen", "cftr2_class_changes", "cftr2_ever_withdrawn",
+        "cftr2_current_determination", "cftr2_in_current_release",
+        "cftr2_history_release", "source"])
 
 
 # =============================================================================
