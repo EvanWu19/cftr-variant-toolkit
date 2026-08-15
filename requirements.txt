@@ -1,9 +1,19 @@
 # CFTR Variant Toolkit — Python dependencies
-# Tested on Python 3.13
+# Tested on Python 3.13. Installs everything tools/01–07 and benchmark/00–01 need.
+#
+# tools/08 (Pangolin) needs a further, much heavier stack — torch and the model
+# package itself — kept out of here deliberately so the other nine notebooks are not
+# gated behind a ~250 MB download. See requirements-pangolin.txt, or run setup_env.ps1
+# which does both.
 pandas>=2.0
 numpy>=1.24
 requests>=2.28
 matplotlib>=3.7
+
+# Reading the source files each build cell parses
+biopython>=1.80        # Bio.bgzf — bgzip seek into the SpliceAI VCFs (tools/07)
+pyarrow>=14.0          # dbNSFP parquet (tools/06)
+openpyxl>=3.1          # the CFTR2 workbook (benchmark/01)
 
 # Notebook authoring / execution
 nbformat>=5.9

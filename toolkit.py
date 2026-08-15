@@ -9,12 +9,22 @@ reader per dataset (read data/<file>, tag source, DEMO fallback).
 This file deliberately does NOT contain fetch/build logic anymore. Each
 dataset's fetch-or-build code (how data/<file> gets created in the first
 place — a live API call, a filtered download, or a locally-run model) lives
-in the ONE notebook that owns that tool (tools/01-06, benchmark/00-01), right
+in the ONE notebook that owns that tool (tools/01-09, benchmark/00-01), right
 next to the loader call and the license/provenance note for that source. That
 used to be split across this file's docstrings, seven build_*.py scripts, and
 two fetch_*.py scripts that were referenced everywhere but never committed —
 opaque provenance masquerading as documentation. Read a tool's own notebook
 to see exactly how its data was obtained; there is nowhere else to look.
+
+Two deliberate exceptions, both for the splice tools: tools/spliceai_build.py
+and tools/pangolin_build.py. SpliceAI's build needs a tabix index parsed by hand (pysam
+does not build on Windows); Pangolin's needs model loading, one-hot encoding
+and a vendored scoring routine. Inline, each is ~100 lines of machinery on top
+of a four-step recipe. The plumbing therefore sits in a module beside its
+notebook, which imports it and introduces every function in prose. Note what
+makes that acceptable and the old build_*.py scripts not: these are COMMITTED
+and read in the open. The recipe — which inputs, what to keep, what to write —
+still lives in the notebook. Nothing similar exists for any other dataset.
 
 Design goals
 ------------
@@ -48,14 +58,14 @@ Real vs demo — and what a fresh clone actually ships
         CFTR2 (~2,097, benchmark/01), EVE (~26,809, tools/03),
         ESM1b (~28,120 saturation, tools/04), REVEL (~10,127 unique coordinates,
         non-commercial, tools/05), PrimateAI (~1,976, dbNSFP ClinVar subset,
-        non-commercial, tools/06), SpliceAI (~566k SNVs; CC BY-NC 4.0)
+        non-commercial, tools/06), SpliceAI (~2.08M records = 566k SNVs +
+        1.51M indels; CC BY-NC 4.0, tools/07), Pangolin (1,892 of the 2,097
+        CFTR2 targets scored by running the model locally; non-commercial,
+        tools/08)
       REAL, queried live per-call (no local data needed):
         CADD v1.7 REST API
-      DEMO always (hand-curated illustrative values — NOT real predictions):
-        Pangolin (9 curated splice variants only; a local model run also gives a REAL
-        model-run path over the full CFTR2 list)
 
-    => The six build-locally loaders fall back to a tiny DEMO table when their
+    => The seven build-locally loaders fall back to a tiny DEMO table when their
        extract is missing. Pass ``strict=True`` to raise instead of silently
        degrading; the default emits a warning. See ``data/README.md`` for the
        provenance summary and ``data_manifest.json`` for exact hashes/licenses.
@@ -69,7 +79,8 @@ References
     PrimateAI     : Sundaram et al. 2018 Nat Genet PMID 30038395
     SpliceAI      : Jaganathan et al. 2019 Cell    PMID 30661751
     Pangolin      : Zeng & Li 2022  Genome Biol PMID 35449021 (github.com/tkzeng/Pangolin)
-    CADD-Splice   : Rentzsch et al. 2021 Genome Med  PMID 33618777
+    CADD v1.7     : Schubach et al. 2024 NAR      PMID 38183205 (released 2024-01-05)
+    CADD-Splice   : Rentzsch et al. 2021 Genome Med  PMID 33618777 (this is v1.6, NOT v1.7)
     REVEL thresholds : Pejaver et al. 2022 AJHG (ACMG calibration) PMID 36413997
 """
 from __future__ import annotations
@@ -108,11 +119,11 @@ def _extract(path: Path) -> Path:
 
 CFTR2_CSV     = DATA_DIR / "cftr2_cftr.csv"                 # benchmark/01
 EVE_CSV       = DATA_DIR / "eve_cftr_2021-08.csv"            # tools/03
-SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # see data/README.md
+SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # tools/07
 ESM1B_CSV     = DATA_DIR / "esm1b_cftr.csv"                  # tools/04
 REVEL_CSV     = DATA_DIR / "revel_cftr_v1.3.csv"              # tools/05
 PRIMATEAI_CSV = DATA_DIR / "primateai_cftr.csv"               # tools/06
-PANGOLIN_CSV  = DATA_DIR / "pangolin_cftr.csv"                # see data/README.md
+PANGOLIN_CSV  = DATA_DIR / "pangolin_cftr.csv"                # tools/08
 
 # CFTR locus, GRCh38. CFTR is on the PLUS (forward) strand of chromosome 7 (7q31.2),
 # so cDNA/coding alleles read the same as the genomic ref/alt — no complementing.
@@ -177,8 +188,10 @@ TOOL_REGISTRY = {
         signal="deep net predicting splice-site usage change",
         circularity="low-for-clinvar", pmid="35449021"),
     "CADD": dict(kind="general", learning="semi-supervised",
-        signal="SVM/logistic on many annotations; trained on simulated-vs-observed variants",
-        circularity="medium", pmid="33618777"),
+        signal="logistic model over ~120 annotations; trained on human-derived vs simulated variants",
+        circularity="medium (a META-model: v1.7's features include masked SpliceAI's four "
+                    "deltas and ESM-1v, so it partly contains other tools in this series)",
+        pmid="38183205"),
 }
 
 # Publication / training-freeze year per tool — the anchor for the temporal-leakage
@@ -187,12 +200,15 @@ TOOL_REGISTRY = {
 # learned from clinical labels. `label_supervised` marks the tools where a post-report
 # training year is a *direct* leakage risk (REVEL); unsupervised/proxy tools carry only
 # INDIRECT risk (benchmarks/frequency calibration), so a date flag there is weaker.
-# NOTE: CADD is NOT trained on clinical labels — it contrasts observed vs simulated
-# variants (proxy). CFTR2 is NOT independent of ClinVar (they cross-cite) -- see the
+# NOTE: CADD is NOT trained on clinical labels — it contrasts human-derived vs simulated
+# variants (proxy). It is however a META-model: CADD v1.7's feature set includes masked
+# SpliceAI's four deltas and ESM-1v scores, so it is not independent of tools/04 or 07 —
+# see tools/09 section 3. Its 2024 date is the latest here, giving it the widest window.
+# CFTR2 is NOT independent of ClinVar (they cross-cite) -- see the
 # Circularity section of README.md and benchmark/01_cftr2.ipynb section 2.
 TOOL_YEAR = {
     "AlphaMissense": 2023, "EVE": 2021, "ESM1b": 2023, "PrimateAI": 2018,
-    "REVEL": 2016, "SpliceAI": 2019, "Pangolin": 2022, "CADD": 2021,  # CADD v1.7
+    "REVEL": 2016, "SpliceAI": 2019, "Pangolin": 2022, "CADD": 2024,  # CADD v1.7, released 2024-01-05
 }
 LABEL_SUPERVISED = {  # trained directly on curated clinical pathogenic/benign labels?
     "AlphaMissense": False, "EVE": False, "ESM1b": False, "PrimateAI": False,
@@ -739,8 +755,17 @@ def load_splice_demo() -> pd.DataFrame:
     one 0–1 score.
 
     ⚠ The DS_/pangolin numbers here are DEMO (hand-authored). For real scores:
-    SpliceAI — precomputed VCF from Illumina BaseSpace (login) or the Broad
-    SpliceAI-lookup app; Pangolin — run the model locally (GPU). See README.
+    SpliceAI — precomputed VCF from Illumina BaseSpace (login, see tools/07) or the
+    Broad SpliceAI-lookup app; Pangolin — run the model locally (tools/08).
+
+    ⚠ The COORDINATES here are hand-entered and several do not match GRCh38 — checked
+    against CFTR2's authoritative columns and live Ensembl VEP: of the 9 rows, 5 name
+    real CF splice alleles whose true positions differ from these by 5-30 kb (two also
+    name the wrong ref/alt), and the other 4 cannot be resolved at all (a poly-T
+    haplotype with no ref/alt, one variant labelled synthetic above, and two whose HGVS
+    names Ensembl rejects because the reference base they claim is not what GRCh38 has).
+    So this table is a teaching fixture, not data: do not join it to anything and do not
+    quote a value from it. tools/07 scores the same alleles at authoritative coordinates.
     """
     df = pd.DataFrame(KNOWN_CF_SPLICE_VARIANTS, columns=_SPLICE_COLS)
     df["spliceai_ds_max"] = df[["DS_AG", "DS_AL", "DS_DG", "DS_DL"]].max(axis=1)
@@ -752,26 +777,45 @@ def load_spliceai(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     """SpliceAI delta scores for CFTR — REAL if the extract exists.
 
     REAL if the extract exists: the precomputed Illumina **SpliceAI v1.3** scores for
-    the whole CFTR region (`data/spliceai_cftr_2021_v1.3.csv`, ~2.08 M records), built
-    by a manual-download build cell (a hand-rolled .tbi seek, since pysam doesn't build
-    on Windows) -- see data/README.md; the SpliceAI notebook itself is pending audit and
-    not published yet. Keyed by genomic coordinate (chrom,pos,ref,alt); columns
-    DS_AG/DS_AL/DS_DG/DS_DL and spliceai_ds_max (>= 0.5 high, >= 0.2 moderate). Join
-    onto observed variants (e.g. gnomAD non-coding) by coordinate to build the real A2
-    splice worklist.
+    the whole CFTR region (`data/spliceai_cftr_2021_v1.3.csv`, 2,075,730 records),
+    built by the manual-download build cell in tools/07_spliceai.ipynb (a hand-rolled
+    .tbi seek, since pysam doesn't build on Windows). Keyed by genomic coordinate
+    (chrom,pos,ref,alt); columns DS_AG/DS_AL/DS_DG/DS_DL and spliceai_ds_max
+    (>= 0.5 high, >= 0.2 moderate). Join onto observed variants (e.g. gnomAD
+    non-coding) by coordinate to build the real splice worklist.
 
-    **SNVs *and* indels** (~566 k + ~1.51 M). The indels matter: no missense predictor
-    can score one, so without them every CFTR2 deletion/insertion was invisible to every
-    tool — including F508del, which SpliceAI scores DS_max = 0.01 (correct: it is a
-    folding defect, not a splice one).
+    **The four deltas are the raw model output and are kept**; spliceai_ds_max is
+    just their max, computed by the build cell and stored beside them, so the collapse
+    is always reversible. The type of change is the biology (a high DS_DL means a real
+    donor is being lost, a high DS_AG means a cryptic exon may be forming) — DS_max
+    alone only says how alarming, so read the deltas, not just the headline. `symbol`
+    carries the gene the release annotated the score against, kept so the CFTR filter
+    is auditable rather than assumed.
 
-    ⚠ The extract is usually **MIXED masked/raw**: Illumina's `masked.indel` release is
-    very often a 0-byte failed download, so the builder falls back to `raw.indel` while
-    SNVs come from `masked.snv`. Each row carries `score_type` ('masked'/'raw') and
-    `variant_class` ('snv'/'indel'). Raw does not zero out biologically implausible
-    directions, so raw >= masked for the same variant: across the CFTR SNVs the two
-    agree exactly 95.8% of the time (mean |diff| 0.0019), but 113 cross the 0.5 cut.
-    Don't compare a masked score against a raw one and call the difference biology.
+    **SNVs *and* indels** (566,106 + 1,509,624). The indels matter: no missense
+    predictor can score one, so without them every CFTR2 deletion/insertion would be
+    invisible to every tool here — including F508del, which SpliceAI scores
+    DS_max = 0.00 (correct: it is a folding defect, not a splice one).
+
+    Built from the **masked** release of both classes, per Illumina's recommendation for
+    variant interpretation. Each row still carries `score_type` ('masked'/'raw') and
+    `variant_class` ('snv'/'indel'), because the build cell falls back to the raw file
+    of whichever class you have not downloaded — so a mixed extract is possible and must
+    stay visible rather than assumed. Masking is an annotation filter applied after the
+    model runs: it zeroes gains at annotated splice sites and losses at unannotated
+    positions, all-or-nothing (never a partial shrink), so raw >= masked always.
+    Measured across all 2,075,730 CFTR records with all four files downloaded, DS_max
+    agrees exactly 95.48% of the time (mean |diff| 0.0021) and 450 cross the 0.5 cut —
+    but only one observed gnomAD non-coding variant and none of the 1,728 scored CFTR2
+    variants. Don't compare a masked score against a raw one and call it biology.
+
+    `spliceai_release` is the version the source VCFs state about *themselves* — the
+    `##fileDate` and the SpliceAI annotation version in their own `##INFO` header line,
+    not a download date — read from data/spliceai_cftr_2021_v1.3.release.json. The build
+    cell writes that sidecar only when it actually builds the extract, from the exact
+    files it scanned: stamping an extract that already exists would describe whatever is
+    in data/ at that moment, which can differ from what produced it. An unstamped extract
+    therefore reports "unknown" rather than a guess.
 
     The extract is gitignored (CC BY-NC 4.0) → fresh clone falls back to the 9
     curated variants (load_splice_demo) with a warning; strict=True raises,
@@ -780,10 +824,17 @@ def load_spliceai(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     deep-intronic coverage in the precomputed release).
 
     LICENSE: SpliceAI scores are CC BY-NC 4.0 (Jaganathan et al. 2019, PMID
-    30661751). The 28.6 GB source VCF stays external; cite SpliceAI + Illumina.
+    30661751). The ~26.6 GB + ~64.1 GB source VCFs stay external; cite SpliceAI + Illumina.
     """
-    if not demo and SPLICEAI_CSV.exists():
-        df = pd.read_csv(SPLICEAI_CSV)
+    fp = _extract(SPLICEAI_CSV)
+    if not demo and fp.exists():
+        df = pd.read_csv(fp)
+        release_fp = _extract(DATA_DIR / "spliceai_cftr_2021_v1.3.release.json")
+        if release_fp.exists():
+            import json
+            df["spliceai_release"] = json.loads(release_fp.read_text())["resolved_version"]
+        else:
+            df["spliceai_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
         df["source"] = "REAL"
         return df
     if not demo:
@@ -798,27 +849,53 @@ def load_pangolin(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     github.com/tkzeng/Pangolin) has no precomputed per-gene release and is not in
     dbNSFP, so real scores require RUNNING the model locally (weights bundled with the
     pip package; only the ~215 kb CFTR reference region is needed, no whole-genome
-    download) -- see data/README.md; the Pangolin notebook is pending audit and not
-    published yet. Score 0-1, >= 0.5 high, >= 0.2 moderate; keyed by genomic coordinate.
+    download) — the build cell in tools/08_pangolin.ipynb does exactly that.
+    Score 0-1, >= 0.5 high, >= 0.2 moderate; keyed by genomic coordinate.
 
-    REAL if the extract exists (``data/pangolin_cftr.csv``). The build cell's
-    default ``SCOPE = "cftr2"`` scores every CFTR2 variant carrying GRCh38
-    coordinates — ~1,892 of 2,097, **SNVs and indels** — and labels the result
-    ``source='REAL'``; ``SCOPE = "curated"`` scores just the 5 classic splice alleles
-    and stays ``source='DEMO'``, because that coverage is a teaching subset rather
-    than a worklist. The label follows the *scope*, never the model. Rows that could
-    not be scored are kept with an empty score and a ``skip_reason``.
+    REAL if the extract exists (``data/pangolin_cftr.csv``). The build cell's default
+    ``SCOPE = "cftr2"`` scores the CFTR2 variant list: 2,097 rows, of which 1,893 carry
+    GRCh38 coordinates and 1,892 are scored (one event exceeds the aggregation window).
+    ``SCOPE = "curated"`` scores just the 5 classic splice alleles as a fast check that
+    the install works. **Both are ``source='REAL'``** — running the model over fewer
+    variants narrows the coverage, not the authenticity, and ``DEMO`` in this module
+    means hand-authored illustrative numbers, which model output never is. Rows that
+    could not be scored are kept with an empty score and a ``skip_reason``, so coverage
+    stays auditable instead of silently short.
+
+    ⚠ ``pangolin_score`` IS a collapse, unlike SpliceAI's four retained deltas. The
+    model emits two signals per position — the largest splice-usage *increase* (gain)
+    and the largest *decrease* (loss) across the +/-50 bp window — and the build cell
+    stores only ``max(gain, |loss|)``. So a 0.86 tells you the magnitude but not
+    whether a site is being created or destroyed, and the extract cannot answer that
+    without re-running the model. SpliceAI (tools/07) keeps its four deltas and can.
 
     Because Pangolin is run locally it reaches variant classes the precomputed
     masked-SNV SpliceAI release cannot (notably indels) — but note: a
     Pangolin score on a frameshift is a *splice* verdict, and "no splice impact" is
     usually correct and rarely the reason the variant is pathogenic.
 
+    ``pangolin_release`` records two things, because they answer different questions.
+    The **model's release** (Zeng & Li 2022) is the temporal anchor: it bounds what could
+    have informed the model, which is what makes a hold-out by first-report date
+    meaningful when this score is later used as evidence — see TOOL_YEAR and the
+    circularity discussion in tools/05 section 2. The **run provenance** — pangolin
+    package version, SHA-256 of the twelve weight files actually loaded, torch build and
+    device, and the reference region — is what a rerun has to match to reproduce a score.
+    Read from data/pangolin_cftr.release.json, which the build cell writes *while the
+    model runs*, since neither survives in a finished CSV.
+
     If the file is absent this falls back to the hand-authored splice-demo pangolin
     values (with a warning; strict=True raises).
     """
-    if not demo and PANGOLIN_CSV.exists():
-        df = pd.read_csv(PANGOLIN_CSV)
+    fp = _extract(PANGOLIN_CSV)
+    if not demo and fp.exists():
+        df = pd.read_csv(fp)
+        release_fp = _extract(DATA_DIR / "pangolin_cftr.release.json")
+        if release_fp.exists():
+            import json
+            df["pangolin_release"] = json.loads(release_fp.read_text())["resolved_version"]
+        else:
+            df["pangolin_release"] = "unknown (pre-dates release tracking; re-run the build cell)"
         return df  # source column set by the build cell (DEMO for curated scope)
     if not demo:
         _missing_extract("Pangolin", PANGOLIN_CSV, strict)
@@ -834,6 +911,20 @@ def load_pangolin(demo: bool = False, strict: bool = False) -> pd.DataFrame:
 # (not hand-entered ones). Each notebook scores this panel itself, inline, with
 # its own loader, rather than this module holding scores for them.
 A2_KNOWN_CDNA = ["c.2988+1G>A", "c.2657+5G>A", "c.3718-2477C>T", "c.3140-26A>G", "c.1680-886A>G"]
+
+# The same five alleles under the legacy (pre-HGVS) CFTR numbering the older literature
+# uses. Written out here from that published nomenclature, deliberately NOT read out of
+# the CFTR2 extract: CFTR2's terms forbid republishing any portion of its content, and a
+# notebook that printed its legacy-name column would be doing exactly that. Legacy
+# numbering counts from an older cDNA start, so it does NOT line up with HGVS c. --
+# '3120+1G>A' and 'c.2988+1G>A' are one variant. Display only; never a join key.
+A2_KNOWN_LEGACY = {
+    "c.2988+1G>A":    "3120+1G>A",
+    "c.2657+5G>A":    "2789+5G>A",
+    "c.3718-2477C>T": "3849+10kbC>T",
+    "c.3140-26A>G":   "3272-26A>G",
+    "c.1680-886A>G":  "1811+1634A>G",
+}
 
 
 # =============================================================================
@@ -918,5 +1009,4 @@ if __name__ == "__main__":
     _try("Pangolin", load_pangolin)
     _try("splice demo", load_splice_demo)
     # CADD has no thin reader here -- it is a live per-call API with no local file,
-    # so there is nothing to smoke-test. Its fetch helper lives in the CADD notebook
-    # (pending audit, not published yet).
+    # so there is nothing to smoke-test. Its fetch helper lives in tools/09_cadd.ipynb.
