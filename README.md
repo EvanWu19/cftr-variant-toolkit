@@ -107,7 +107,8 @@ annotated version.
 | 05 | [`05_revel.ipynb`](tools/05_revel.ipynb) | REVEL — supervised ensemble, and **circularity** | ⬇ build it |
 | 06 | [`06_primateai.ipynb`](tools/06_primateai.ipynb) | PrimateAI — semi-supervised, near-saturating | ⬇ build it |
 | 07 | [`07_spliceai.ipynb`](tools/07_spliceai.ipynb) | SpliceAI — splice deltas, and what "masked" costs | ⬇ build it |
-| 08 | [`08_pangolin.ipynb`](tools/08_pangolin.ipynb) | Pangolin — a second, independent splice model | ⬇ build it |
+| 08 | [`08_pangolin.ipynb`](tools/08_pangolin.ipynb) | Pangolin — a second splice model, and how independent it isn't | ⬇ build it |
+| 09 | [`09_cadd.ipynb`](tools/09_cadd.ipynb) | CADD — one score across every variant class, live API | 🌐 live |
 
 ### `benchmark/` — the truth sets tools get graded against
 
@@ -118,19 +119,45 @@ annotated version.
 
 ## Setup
 
+One script builds an isolated `.venv`, installs everything, registers a Jupyter kernel,
+and then **verifies** it — importing every package the notebooks use and every module in
+the repo, rather than assuming the install worked:
+
+```powershell
+.\setup_env.ps1
+```
+
+Add `-SkipPangolin` to skip PyTorch and the Pangolin model package (~250 MB, needed only
+by `tools/08`), or `-Cuda cu124` for a GPU build. Then pick the **Python (CFTR toolkit)**
+kernel in Jupyter.
+
+Prefer to do it by hand, or not on Windows:
+
 ```bash
-pip install -r requirements.txt
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt                                    # tools/01–07, benchmark/00–01
+pip install torch --index-url https://download.pytorch.org/whl/cpu # tools/08 only
+pip install -r requirements-pangolin.txt                           # tools/08 only, needs git
 jupyter lab
 ```
 
+Install torch *before* `requirements-pangolin.txt` — the Pangolin package imports it
+while building.
+
 Open [`benchmark/00_clinvar.ipynb`](benchmark/00_clinvar.ipynb) first. The four included
-datasets work immediately; the other four print a build recipe when you first load them.
+datasets work immediately; the other six print a build recipe when you first load them.
 
 Run everything headless:
 
 ```bash
-for dir in tools benchmark; do (cd "$dir" && for nb in *.ipynb; do jupyter nbconvert --to notebook --execute --inplace "$nb"; done); done
+for dir in tools benchmark; do (cd "$dir" && for nb in *.ipynb; do jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.kernel_name=cftr-toolkit "$nb"; done); done
 ```
+
+`--ExecutePreprocessor.kernel_name` is not optional if you used `setup_env.ps1`. The
+notebooks declare the portable `python3` kernelspec, and `nbconvert` launches *that*
+kernel rather than the interpreter you invoked it with — so without the flag `tools/08`
+fails with `No module named 'torch'` even from inside an activated `.venv`. Selecting
+**Python (CFTR toolkit)** in Jupyter Lab does the same thing interactively.
 
 ## Files
 
@@ -142,7 +169,12 @@ cftr-variant-toolkit/
 ├── verify_data.py        ← checks locally built extracts against data_manifest.json
 ├── data_manifest.json    ← source, version, checksum and licence for every dataset
 ├── docs/architecture.md  ← how a public source becomes a worklist (diagram)
-├── tools/                ← 01–08, committed with outputs
+├── tools/                ← 01–09, committed with outputs
+│   ├── spliceai_build.py ← tabix/bgzf plumbing for 07 (pysam won't build on Windows)
+│   └── pangolin_build.py ← model loading + scoring for 08. The only two build helpers
+│                           outside a notebook; both committed and imported in view.
+│                           The _build suffix stops them shadowing the PyPI packages
+│                           of the same name when run from tools/
 ├── benchmark/            ← 00–01, committed with outputs
 └── data/                 ← gitignored except:
     ├── README.md         ← fetch/build guide

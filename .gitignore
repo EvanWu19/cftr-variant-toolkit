@@ -2,6 +2,10 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
+# Virtual environment built by setup_env.ps1 — never committed
+.venv/
+venv/
+
 # ── DATA IS MOSTLY NOT PUBLISHED ────────────────────────────────────────────
 # This repo ships CODE + NOTEBOOKS + manifest, plus a small permissively-licensed
 # publishable/ subset (see below) -- everything else stays local-only.
@@ -40,11 +44,10 @@ plan/
 TODO.md
 
 # ── NOT YET AUDITED: kept locally, held back from GitHub ───────────────────
-# tools/01-08 and benchmark/00-01 have been through the audit pass; these have
+# tools/01-09 and benchmark/00-01 have been through the audit pass; these have
 # not. They stay on disk and get re-published individually as each is audited.
 # Listed here as well as untracked so a future `git add -A` can't re-add them.
 tools/00_overview_and_setup.ipynb
-tools/09_cadd.ipynb
 tools/10_decircularization_benchmark.ipynb
 predict/
 

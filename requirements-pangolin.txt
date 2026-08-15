@@ -1,0 +1,30 @@
+# Extra dependencies for tools/08_pangolin.ipynb ONLY.
+#
+# Pangolin is the one tool here you RUN rather than download, so it needs the model
+# package and PyTorch. That is a ~250 MB install, which is why it is separate: the
+# other nine notebooks should not be gated behind it.
+#
+# Install AFTER requirements.txt, and note the order matters — the Pangolin package
+# imports torch while building, so torch has to be there first:
+#
+#   pip install -r requirements.txt
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-pangolin.txt
+#
+# setup_env.ps1 does all of this in the right order.
+#
+# CPU vs GPU: the line above installs the CPU build, which works everywhere and is what
+# the guarded install uses. Scoring the full CFTR2 list on CPU takes a long while; if you
+# have an NVIDIA GPU, install the matching CUDA build instead (see pytorch.org) and the
+# same code will use it — pangolin.py checks torch.cuda.is_available() itself.
+#
+# torch is intentionally NOT pinned here: the right wheel depends on your platform and
+# CUDA version, so it is installed separately rather than resolved from this file.
+
+pyfaidx>=0.7
+gffutils>=0.12
+setuptools>=68          # pkg_resources, the fallback path in tools/pangolin.py
+
+# The model itself: weights ship inside the package, so there is no separate download.
+# Needs git on PATH.
+pangolin @ git+https://github.com/tkzeng/Pangolin.git
