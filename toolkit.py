@@ -206,7 +206,7 @@ TOOL_REGISTRY = {
 # SpliceAI's four deltas and ESM-1v scores, so it is not independent of tools/04 or 07 —
 # see tools/09 section 3. Its 2024 date is the latest here, giving it the widest window.
 # CFTR2 is NOT independent of ClinVar (they cross-cite) -- see the
-# Circularity section of README.md and benchmark/01_cftr2.ipynb section 2.
+# Circularity section of README.md and tools/05_revel.ipynb section 2.
 TOOL_YEAR = {
     "AlphaMissense": 2023, "EVE": 2021, "ESM1b": 2023, "PrimateAI": 2018,
     "REVEL": 2016, "SpliceAI": 2019, "Pangolin": 2022, "CADD": 2024,  # CADD v1.7, released 2024-01-05
@@ -667,9 +667,10 @@ def load_cftr2(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     empty key but keep their legacy/cDNA names and genomic coordinates. Also
     returns ``cftr2_release``: the release date embedded in whichever workbook
     was actually used to build the extract (from ``data/cftr2_cftr.release.json``,
-    written alongside it) — CFTR2 has no historical archive to pin against
-    (checked; unlike ClinVar), so reproducing a past run means manually
-    obtaining that older workbook from cftr2.org yourself.
+    written alongside it). Past releases stay downloadable from cftr2.org at
+    ``sites/default/files/CFTR2_<DDMonthYYYY>.xlsx`` (verified: all 12 in the
+    series fetch byte-identical to local copies), so pinning a past run means
+    pointing the build cell at that release's workbook.
 
     The extract is gitignored (CFTR2's data-use terms allow local use; rebuild it
     yourself from cftr2.org — see data/README.md), so a fresh clone falls back to
@@ -733,9 +734,9 @@ def load_cftr2_history(strict: bool = False) -> pd.DataFrame:
     floor (REVEL 2016 is earliest), so training-cutoff hold-outs are still constructible;
     the censored bucket is simply "known before all of them".
 
-    ⚠ **Not reproducible from a fresh clone.** cftr2.org publishes no historical archive,
-    so this needs twelve workbooks you already hold. Missing extract -> warns and returns
-    empty (strict=True raises). Please cite CFTR2 (cftr2.org) if you use it.
+    Reproducible: cftr2.org keeps every past release at a stable public path, and the
+    notebook's build cell downloads any that are missing. Missing extract -> warns and
+    returns empty (strict=True raises). Please cite CFTR2 (cftr2.org) if you use it.
     """
     if CFTR2_HIST_CSV.exists():
         df = pd.read_csv(CFTR2_HIST_CSV, dtype={"cdna_name": "string", "variant_key": "string"})

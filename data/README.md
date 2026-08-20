@@ -107,11 +107,15 @@ Notes:
   because neither can be reconstructed from a finished CSV. Unlike SpliceAI, the
   stored `pangolin_score` is a collapse (`max(gain, |loss|)`) and the direction of the
   change is not retained; use SpliceAI's deltas when you need the mechanism.
-- **CFTR2 has no historical archive** (checked directly against cftr2.org —
-  there is no dated-release listing, unlike ClinVar). The build cell reads
-  whatever release date is in the workbook's own header and records it in
-  `cftr2_cftr.release.json`; reproducing a past run means manually sourcing
-  that older workbook from cftr2.org yourself.
+- **CFTR2 keeps every past release**, linked from its *CFTR2 Variant List History*
+  page and served from `https://cftr2.org/sites/default/files/CFTR2_<DDMonthYYYY>.xlsx`
+  (verified 2026-08-19: all 12 releases in the series fetch byte-identical to local
+  copies, with no session or site-agreement needed). The build cell reads whatever
+  release date is in the workbook's own header and records it in
+  `cftr2_cftr.release.json`, so a run can be pinned to a specific release. Section 2 of
+  `benchmark/01_cftr2.ipynb` downloads the whole series to reconstruct when each
+  CF-causing call was made; downloading is what CFTR2's terms permit, republishing is
+  not, so none of it is committed.
 
 ---
 

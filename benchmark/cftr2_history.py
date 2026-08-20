@@ -9,9 +9,9 @@ holds the parts that would otherwise bury it: twelve workbooks with three differ
 column layouts, a nomenclature migration, a class vocabulary that changed twice, and the
 guards that stop any of those from silently returning a plausible wrong answer.
 
-Nothing here runs on import and nothing here downloads anything. CFTR2 publishes no
-historical archive, so the twelve workbooks are files you must already hold locally; the
-notebook says so, and :func:`build_history` raises if they are not there.
+Nothing here runs on import. CFTR2 keeps every past release at a stable public path, so
+:func:`download_releases` can fetch the whole series; :func:`build_history` reads whatever
+workbooks it is handed and raises if the series has a gap.
 
 Why a date is measurable at all
 -------------------------------
@@ -24,9 +24,10 @@ release at which a variant reads ``CF-causing`` is a real, CFTR2-native date.
 What it cannot do
 -----------------
 The series is **left-censored at 2015-08-13**, the label on the 2016-08-08 workbook's
-previous-version column. Everything already CF-causing there — F508del included — gets
-``left_censored``, which is a bound and not a date. Resolution is set by CFTR2's
-irregular release cadence, 6-18 months.
+previous-version column: that is the oldest workbook cftr2.org serves (checked — no
+2015-or-earlier xlsx exists at the path below). Everything already CF-causing at that
+point has no date, only a bound. Resolution is set by CFTR2's irregular release cadence,
+6-18 months.
 
 The three traps this module exists to catch
 -------------------------------------------
@@ -72,9 +73,10 @@ same failure ``tools/spliceai_build.py`` and ``tools/pangolin_build.py`` are nam
 
 Data use
 --------
-CFTR2's terms forbid republishing any portion of the Content, so neither the workbooks nor
-the extracts this writes may be committed. The notebook prints aggregates and derived
-columns only. Cite CFTR2 (cftr2.org) if you use it.
+CFTR2's terms permit downloading for your own non-commercial use but forbid republishing
+any portion of the Content, so neither the workbooks nor the extracts this writes may be
+committed. Fetching them from cftr2.org is what the terms allow; redistributing them is
+not. Cite CFTR2 (cftr2.org) if you use it.
 """
 from __future__ import annotations
 
@@ -127,6 +129,67 @@ KNOWN_HEADER_DISCREPANCIES = {
 }
 
 _JUNK_PREFIXES = ("*", "©", "Permitted use", "Please use", "This detailed")
+
+# --------------------------------------------------------------------------------------
+# The release series
+# --------------------------------------------------------------------------------------
+# cftr2.org keeps every past variant-list release at a stable public path -- the same one
+# its "CFTR2 Variant List History" page links. Verified 2026-08-19: each of these fetches
+# 200 OK and hashes byte-identical to the locally archived copy, with no session cookie
+# and without accepting the site usage agreement (that gate is on the variant *search*).
+#
+# The 2019 entry's filename really does contain a space and "(1)" on the server; it is not
+# a local download artefact. The list is deliberately explicit rather than scraped: the
+# history page is server-rendered behind a redirect, and a silently short list would just
+# look like a shorter series. build_history's chain check is what proves none is missing.
+CFTR2_RELEASE_BASE = "https://cftr2.org/sites/default/files"
+CFTR2_RELEASE_FILES = (
+    "CFTR2_8August2016.xlsx",
+    "CFTR2_17March2017.xlsx",
+    "CFTR2_8December2017_2.xlsx",
+    "CFTR2_31August2018_3.xlsx",
+    "CFTR2_11March2019 (1).xlsx",
+    "CFTR2_10January2020.xlsx",
+    "CFTR2_31July2020.xlsx",
+    "CFTR2_24September2021.xlsx",
+    "CFTR2_29April2022.xlsx",
+    "CFTR2_7April2023.xlsx",
+    "CFTR2_25September2024.xlsx",
+    "CFTR2_30January2026.xlsx",
+)
+
+
+def download_releases(data_dir: Path, files=CFTR2_RELEASE_FILES) -> dict:
+    """Fetch any release workbooks not already in ``data_dir``. Returns what it did.
+
+    Downloading is what CFTR2's terms permit ("solely for your own non-commercial use");
+    redistributing is not, which is why these land in gitignored ``data/`` and never in
+    the repo. Existing files are left alone rather than re-fetched, so a local copy is
+    never silently replaced by a differing upstream one.
+    """
+    import urllib.parse
+    import urllib.request
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    got, already, failed = [], [], []
+    for name in files:
+        dest = data_dir / name
+        if dest.exists():
+            already.append(name)
+            continue
+        url = f"{CFTR2_RELEASE_BASE}/{urllib.parse.quote(name)}"
+        try:
+            with urllib.request.urlopen(url, timeout=60) as r:
+                body = r.read()
+            # A redirect to the agreement page returns HTML, not a workbook. Without this
+            # the build would fail later with an opaque openpyxl zip error.
+            if not body.startswith(b"PK"):
+                raise HistoryError(f"{url} did not return an xlsx ({len(body)} bytes)")
+            dest.write_bytes(body)
+            got.append(name)
+        except Exception as exc:  # noqa: BLE001
+            failed.append((name, str(exc)[:120]))
+    return {"downloaded": got, "already_present": already, "failed": failed}
 
 
 class HistoryError(RuntimeError):
