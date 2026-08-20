@@ -40,7 +40,7 @@ jobs:
 
           # The non-commercial / research-use-only sources must never appear at all.
           forbidden=$(git ls-files data/ \
-            | grep -iE 'revel|primateai|spliceai|pangolin|cftr2_cftr|dbnsfp|esm1b' || true)
+            | grep -iE 'revel|primateai|spliceai|pangolin|cftr2|dbnsfp|esm1b' || true)
           if [ -n "$forbidden" ]; then
             echo "::error::non-redistributable dataset is tracked:"; echo "$forbidden"; exit 1
           fi

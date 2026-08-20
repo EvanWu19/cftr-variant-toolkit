@@ -118,6 +118,8 @@ def _extract(path: Path) -> Path:
     return shipped if shipped.exists() else path
 
 CFTR2_CSV     = DATA_DIR / "cftr2_cftr.csv"                 # benchmark/01
+CFTR2_HIST_CSV = DATA_DIR / "cftr2_history.csv"              # benchmark/01
+CLINVAR_HIST_CSV = DATA_DIR / "clinvar_history.csv"          # benchmark/00
 EVE_CSV       = DATA_DIR / "eve_cftr_2021-08.csv"            # tools/03
 SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # tools/07
 ESM1B_CSV     = DATA_DIR / "esm1b_cftr.csv"                  # tools/04
@@ -205,7 +207,7 @@ TOOL_REGISTRY = {
 # SpliceAI's four deltas and ESM-1v scores, so it is not independent of tools/04 or 07 —
 # see tools/09 section 3. Its 2024 date is the latest here, giving it the widest window.
 # CFTR2 is NOT independent of ClinVar (they cross-cite) -- see the
-# Circularity section of README.md and benchmark/01_cftr2.ipynb section 2.
+# Circularity section of README.md and tools/05_revel.ipynb section 2.
 TOOL_YEAR = {
     "AlphaMissense": 2023, "EVE": 2021, "ESM1b": 2023, "PrimateAI": 2018,
     "REVEL": 2016, "SpliceAI": 2019, "Pangolin": 2022, "CADD": 2024,  # CADD v1.7, released 2024-01-05
@@ -390,6 +392,54 @@ def load_clinvar() -> pd.DataFrame:
         out["clinvar_release"] = "unknown (pre-dates release tracking; re-run the fetch cell)"
     out["source"] = "REAL"
     return out.reset_index(drop=True)
+
+
+def load_clinvar_history(strict: bool = False) -> pd.DataFrame:
+    """When ClinVar first called each CFTR variant pathogenic, from its own archive (REAL).
+
+    The temporal-leakage answer for the ClinVar truth set. ``variant_summary`` is a
+    snapshot, not a history -- ``LastEvaluated`` is the most recent review, which points
+    the wrong way in time -- but NCBI archives the snapshot monthly back to 2015, so the
+    history is reconstructed by reading the archive. Built by the history section of
+    benchmark/00_clinvar.ipynb via benchmark/clinvar_history.py ->
+    data/clinvar_history.csv. Columns:
+      allele_id       ClinVar's #AlleleID -- the walk's join key, the only identifier
+                      present in every archived release (VariationID starts at 2018-12)
+      variation_id    carried from the newest release so this joins to load_clinvar()
+      clinvar_first_pathogenic  first archived release whose aggregate classification is
+                      a clean Pathogenic / Likely pathogenic / Pathogenic-Likely
+                      pathogenic call. Empty if ClinVar has never called it pathogenic.
+                      Equal to the earliest release in the series = already pathogenic
+                      when the archive opens, i.e. a BOUND rather than a date.
+      clinvar_first_seen        first archived release the variant appears in at all
+      clinvar_class_changes     how many times the canonical classification changed
+      clinvar_ever_withdrawn    was pathogenic at one release and not at a later one
+                                (a round trip counts -- pair with the current column)
+      clinvar_current_significance  canonical classification at the newest release
+      clinvar_in_current_release, clinvar_history_release, source
+
+    ⚠ **'Conflicting' is not counted as pathogenic.** Labs disagreeing is not a clean
+    label a model could have trained on, and folding it in would inflate every hold-out --
+    the same argument benchmark/00 section 4 makes about not resolving conflicts yourself.
+
+    ⚠ **Annual sampling.** One release per year, matching TOOL_YEAR's year granularity,
+    so a variant dated to a release became pathogenic sometime in the preceding twelve
+    months. ⚠ **Left-censored** at the earliest archived release in the series.
+
+    Missing extract -> warns and returns empty (strict=True raises). ClinVar is public
+    domain; the extract is kept local only because it is bulky and trivially rebuilt.
+    """
+    if CLINVAR_HIST_CSV.exists():
+        df = pd.read_csv(CLINVAR_HIST_CSV, dtype={"allele_id": "string",
+                                                  "variation_id": "string"})
+        df["source"] = "REAL"
+        return df
+    _missing_extract("ClinVar history", CLINVAR_HIST_CSV, strict)
+    return pd.DataFrame(columns=[
+        "allele_id", "variation_id", "clinvar_first_pathogenic", "clinvar_first_seen",
+        "clinvar_class_changes", "clinvar_ever_withdrawn",
+        "clinvar_current_significance", "clinvar_in_current_release",
+        "clinvar_history_release", "source"])
 
 
 # =============================================================================
@@ -666,9 +716,10 @@ def load_cftr2(demo: bool = False, strict: bool = False) -> pd.DataFrame:
     empty key but keep their legacy/cDNA names and genomic coordinates. Also
     returns ``cftr2_release``: the release date embedded in whichever workbook
     was actually used to build the extract (from ``data/cftr2_cftr.release.json``,
-    written alongside it) — CFTR2 has no historical archive to pin against
-    (checked; unlike ClinVar), so reproducing a past run means manually
-    obtaining that older workbook from cftr2.org yourself.
+    written alongside it). Past releases stay downloadable from cftr2.org at
+    ``sites/default/files/CFTR2_<DDMonthYYYY>.xlsx`` (verified: all 12 in the
+    series fetch byte-identical to local copies), so pinning a past run means
+    pointing the build cell at that release's workbook.
 
     The extract is gitignored (CFTR2's data-use terms allow local use; rebuild it
     yourself from cftr2.org — see data/README.md), so a fresh clone falls back to
@@ -697,6 +748,56 @@ def load_cftr2_demo() -> pd.DataFrame:
     REAL list; kept for the early teaching cells that predate the real loader."""
     d = _demo_frame()
     return d[["protein_variant", "cftr2_class", "source"]]
+
+
+def load_cftr2_history(strict: bool = False) -> pd.DataFrame:
+    """When CFTR2 first called each variant CF-causing, from its own release series (REAL).
+
+    The temporal-leakage answer for the CFTR2 truth set. CFTR2's workbook has no
+    per-variant date field, but every release carries a *previous version* determination
+    column naming the preceding release, so twelve archived workbooks chain into a
+    per-variant trajectory. Built by the history section of benchmark/01_cftr2.ipynb via
+    benchmark/cftr2_history.py -> data/cftr2_history.csv. Columns:
+      cdna_name        CFTR2's cDNA name at the most recent release ('' if the variant
+                       has since been dropped from the list)
+      variant_key      CFTR2's legacy name -- the join key, because it is the only name
+                       stable across all twelve releases. CFTR2 Content: use it to join,
+                       never print it (see data_manifest.json).
+      cftr2_first_cf_causing   first release whose determination reads CF-causing
+      cftr2_date_basis  how to read that date, NOT collapsed into it:
+                        'observed'         a real date from the release series
+                        'left_censored'    already CF-causing at the 2015-08-13 floor,
+                                           so the value is a BOUND, not a date
+                        'never_cf_causing' CFTR2 has never called it CF-causing
+      cftr2_first_seen  first release the variant appears at all, any class
+      cftr2_class_changes       how many times the determination changed
+      cftr2_ever_withdrawn      was CF-causing at one release and not at a later one
+                                (true for a round trip too -- pair it with
+                                cftr2_current_determination to tell those apart)
+      cftr2_current_determination  normalised class at the most recent release
+      cftr2_in_current_release, cftr2_history_release, source
+
+    ⚠ **Left-censored at 2015-08-13.** CFTR2's archive starts there, so F508del and 237
+    other long-known alleles carry that date as a bound. It is not when they were
+    discovered — F508del was reported in 1989. Every tool in TOOL_YEAR postdates the
+    floor (REVEL 2016 is earliest), so training-cutoff hold-outs are still constructible;
+    the censored bucket is simply "known before all of them".
+
+    Reproducible: cftr2.org keeps every past release at a stable public path, and the
+    notebook's build cell downloads any that are missing. Missing extract -> warns and
+    returns empty (strict=True raises). Please cite CFTR2 (cftr2.org) if you use it.
+    """
+    if CFTR2_HIST_CSV.exists():
+        df = pd.read_csv(CFTR2_HIST_CSV, dtype={"cdna_name": "string", "variant_key": "string"})
+        df["cdna_name"] = df["cdna_name"].fillna("")
+        df["source"] = "REAL"
+        return df
+    _missing_extract("CFTR2 history", CFTR2_HIST_CSV, strict)
+    return pd.DataFrame(columns=[
+        "cdna_name", "variant_key", "cftr2_first_cf_causing", "cftr2_date_basis",
+        "cftr2_first_seen", "cftr2_class_changes", "cftr2_ever_withdrawn",
+        "cftr2_current_determination", "cftr2_in_current_release",
+        "cftr2_history_release", "source"])
 
 
 # =============================================================================
