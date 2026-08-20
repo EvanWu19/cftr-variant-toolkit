@@ -177,6 +177,23 @@
       "publishable": "no",
       "publishable_note": "DO NOT SHIP. Same CFTR2 Legal Terms & Conditions §12 basis as the cftr2 entry: this is a derivative work computed from twelve releases of the Content. The notebook prints aggregates and derived columns only — no legacy names, cDNA names, determinations, allele counts or coordinates reach committed outputs. The CI gate in .github/workflows/smoke.yml blocks any tracked data/ path matching 'cftr2'.",
       "note": "Dates when CFTR2 adopted a CF-causing call, NOT when a variant was discovered. cftr2_date_basis distinguishes observed / left_censored / never_cf_causing and is a column rather than being folded into the date. Per-release trajectories are kept in the companion cftr2_history_long.csv."
+    },
+    "clinvar_history": {
+      "notebook": "benchmark/00",
+      "kind": "derived_extract",
+      "local_file": "data/clinvar_history.csv",
+      "sha256": "a66a236a06f3a3c41ff9dd642f5ad5a4d0c3bd3c6a95b57829036efdfc0df6d9",
+      "rows": 6309,
+      "companion_files": ["data/clinvar_history_long.csv", "data/clinvar_history.release.json", "data/clinvar_history/ (per-release cache)"],
+      "built_by": "benchmark/00_clinvar.ipynb section 5, via benchmark/clinvar_history.py",
+      "raw_source": "12 archived ClinVar variant_summary releases, 2015-12 to 2026-08",
+      "source": "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/archive/",
+      "version": "Reconstructed from the 12 archived releases listed in data/clinvar_history.release.json (2015-12 → 2026-08), sampled one per year to match TOOL_YEAR's year granularity. Left-censored at 2015-12. Fully reproducible: NCBI's archive is public, permanent and unauthenticated.",
+      "retrieval_date": "2026-08-19",
+      "license": "Public domain (NCBI / U.S. Government work, CC0). No redistribution restriction; attribution requested. Landrum et al., Nucleic Acids Res.",
+      "publishable": "no",
+      "publishable_note": "COULD ship (ClinVar is CC0) but deliberately does not: the long table is ~5 MB and the per-release cache another 5.5 MB, both rebuilt by running the notebook's own build cell. data/publishable/clinvar_cftr.tsv carries the current snapshot instead.",
+      "note": "Dates when ClinVar's AGGREGATE classification first read pathogenic, NOT when a variant was discovered. 'Conflicting' is not counted as pathogenic. Keyed on #AlleleID because VariationID does not exist in releases before 2018-12; variation_id is carried from the newest release so the table joins to load_clinvar()."
     }
   }
 }

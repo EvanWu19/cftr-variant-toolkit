@@ -119,6 +119,7 @@ def _extract(path: Path) -> Path:
 
 CFTR2_CSV     = DATA_DIR / "cftr2_cftr.csv"                 # benchmark/01
 CFTR2_HIST_CSV = DATA_DIR / "cftr2_history.csv"              # benchmark/01
+CLINVAR_HIST_CSV = DATA_DIR / "clinvar_history.csv"          # benchmark/00
 EVE_CSV       = DATA_DIR / "eve_cftr_2021-08.csv"            # tools/03
 SPLICEAI_CSV  = DATA_DIR / "spliceai_cftr_2021_v1.3.csv"     # tools/07
 ESM1B_CSV     = DATA_DIR / "esm1b_cftr.csv"                  # tools/04
@@ -391,6 +392,54 @@ def load_clinvar() -> pd.DataFrame:
         out["clinvar_release"] = "unknown (pre-dates release tracking; re-run the fetch cell)"
     out["source"] = "REAL"
     return out.reset_index(drop=True)
+
+
+def load_clinvar_history(strict: bool = False) -> pd.DataFrame:
+    """When ClinVar first called each CFTR variant pathogenic, from its own archive (REAL).
+
+    The temporal-leakage answer for the ClinVar truth set. ``variant_summary`` is a
+    snapshot, not a history -- ``LastEvaluated`` is the most recent review, which points
+    the wrong way in time -- but NCBI archives the snapshot monthly back to 2015, so the
+    history is reconstructed by reading the archive. Built by the history section of
+    benchmark/00_clinvar.ipynb via benchmark/clinvar_history.py ->
+    data/clinvar_history.csv. Columns:
+      allele_id       ClinVar's #AlleleID -- the walk's join key, the only identifier
+                      present in every archived release (VariationID starts at 2018-12)
+      variation_id    carried from the newest release so this joins to load_clinvar()
+      clinvar_first_pathogenic  first archived release whose aggregate classification is
+                      a clean Pathogenic / Likely pathogenic / Pathogenic-Likely
+                      pathogenic call. Empty if ClinVar has never called it pathogenic.
+                      Equal to the earliest release in the series = already pathogenic
+                      when the archive opens, i.e. a BOUND rather than a date.
+      clinvar_first_seen        first archived release the variant appears in at all
+      clinvar_class_changes     how many times the canonical classification changed
+      clinvar_ever_withdrawn    was pathogenic at one release and not at a later one
+                                (a round trip counts -- pair with the current column)
+      clinvar_current_significance  canonical classification at the newest release
+      clinvar_in_current_release, clinvar_history_release, source
+
+    ⚠ **'Conflicting' is not counted as pathogenic.** Labs disagreeing is not a clean
+    label a model could have trained on, and folding it in would inflate every hold-out --
+    the same argument benchmark/00 section 4 makes about not resolving conflicts yourself.
+
+    ⚠ **Annual sampling.** One release per year, matching TOOL_YEAR's year granularity,
+    so a variant dated to a release became pathogenic sometime in the preceding twelve
+    months. ⚠ **Left-censored** at the earliest archived release in the series.
+
+    Missing extract -> warns and returns empty (strict=True raises). ClinVar is public
+    domain; the extract is kept local only because it is bulky and trivially rebuilt.
+    """
+    if CLINVAR_HIST_CSV.exists():
+        df = pd.read_csv(CLINVAR_HIST_CSV, dtype={"allele_id": "string",
+                                                  "variation_id": "string"})
+        df["source"] = "REAL"
+        return df
+    _missing_extract("ClinVar history", CLINVAR_HIST_CSV, strict)
+    return pd.DataFrame(columns=[
+        "allele_id", "variation_id", "clinvar_first_pathogenic", "clinvar_first_seen",
+        "clinvar_class_changes", "clinvar_ever_withdrawn",
+        "clinvar_current_significance", "clinvar_in_current_release",
+        "clinvar_history_release", "source"])
 
 
 # =============================================================================

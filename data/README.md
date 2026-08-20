@@ -107,6 +107,13 @@ Notes:
   because neither can be reconstructed from a finished CSV. Unlike SpliceAI, the
   stored `pangolin_score` is a collapse (`max(gain, |loss|)`) and the direction of the
   change is not retained; use SpliceAI's deltas when you need the mechanism.
+- **ClinVar's whole history is public.** NCBI archives `variant_summary` monthly back
+  to 2015-02 at `.../tab_delimited/archive/`. `benchmark/00_clinvar.ipynb` section 5
+  reads one release per year to reconstruct when each CFTR variant was first called
+  pathogenic — the file itself is a snapshot with no such field, and its
+  `LastEvaluated` column is the most recent review, which points the wrong way in
+  time. Each release is filtered to CFTR/GRCh38 on the way in and cached under
+  `data/clinvar_history/`, so the ~1.7 GB of downloads happens once.
 - **CFTR2 keeps every past release**, linked from its *CFTR2 Variant List History*
   page and served from `https://cftr2.org/sites/default/files/CFTR2_<DDMonthYYYY>.xlsx`
   (verified 2026-08-19: all 12 releases in the series fetch byte-identical to local

@@ -116,6 +116,25 @@ except Exception as exc:  # noqa: BLE001
 else:
     check("CFTR2 history strict=True raises", False, "returned a frame instead")
 
+print("3c. the ClinVar release history degrades to empty, not to a fabricated date")
+# Same rule as the CFTR2 history above: no DEMO fallback, because a made-up date is
+# indistinguishable from a real one downstream.
+with warnings.catch_warnings(record=True) as caught:
+    warnings.simplefilter("always")
+    cv_hist = tk.load_clinvar_history()
+check("ClinVar history is empty without the extract", len(cv_hist) == 0, f"got {len(cv_hist)} rows")
+check("ClinVar history keeps its columns when empty",
+      {"clinvar_first_pathogenic", "allele_id", "variation_id"} <= set(cv_hist.columns))
+check("ClinVar history warns about the missing extract", len(caught) > 0, "fell back silently")
+try:
+    tk.load_clinvar_history(strict=True)
+except FileNotFoundError:
+    check("ClinVar history strict=True raises", True)
+except Exception as exc:  # noqa: BLE001
+    check("ClinVar history strict=True raises", False, f"got {type(exc).__name__}: {exc}")
+else:
+    check("ClinVar history strict=True raises", False, "returned a frame instead")
+
 print("4. a locally built extract always wins over the shipped snapshot")
 probe = tk.DATA_DIR / "gnomad_cftr_all.tsv"
 check("shipped copy is used when data/ has no local build",
